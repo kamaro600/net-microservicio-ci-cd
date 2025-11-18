@@ -14,7 +14,12 @@ cd net-clean-arquitecture
 # 2. Configurar variables de entorno
 # Editar .env con tus configuraciones específicas
 
-# 3. Levantar toda la arquitectura
+# 3. Se debe tener una base de datos en PostgreSQL
+
+Ejecutar database-schema.sql y auth-database-setup.sql para la creacion de las bases de datos y datos de ejemplo.
+
+# 4. Adecuar el aarchivo env paara los datos de conexion y otros (Mail)
+# 5. Levantar toda la arquitectura
 docker-compose up -d --build
 ```
 
