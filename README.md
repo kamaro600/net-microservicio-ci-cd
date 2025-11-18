@@ -182,14 +182,12 @@ La aplicación se conecta a una base de datos PostgreSQL externa usando `host.do
 
 ```sql
 -- Crear base de datos
-CREATE DATABASE UniversidadBD;
-
--- Crear usuario admin
-CREATE USER admin WITH ENCRYPTED PASSWORD 'admin123';
-GRANT ALL PRIVILEGES ON DATABASE UniversidadBD TO admin;
+UniversidadBD;
+university_auth;
 
 -- Ejecutar script completo
-\i database-schema.sql
+database-schema.sql
+auth-database-setup.sql
 ```
 
 ### � Conectividad desde Docker
@@ -211,7 +209,7 @@ docker run --rm alpine nc -zv host.docker.internal 5432
 http://localhost:5000/swagger
 
 # Health Check
-curl http://localhost:5000/health
+curl http://localhost:5000/api/health
 
 # Listar estudiantes
 curl http://localhost:5000/api/students
@@ -296,31 +294,3 @@ dotnet run --urls "http://localhost:5065"
 cd ../UniversityManagement.AuditService
 dotnet run --urls "http://localhost:5066"
 ```
-
-## 🚨 Troubleshooting
-
-### 🐳 Problemas Comunes Docker
-
-```bash
-# Puerto ocupado
-netstat -ano | findstr :5000
-taskkill /PID <PID> /F
-
-# Limpiar Docker
-docker system prune -a -f
-
-# Verificar conectividad de red
-docker network ls
-docker network inspect university-management_university-network
-```
-
-<div align="center">
-
-**⭐ Si este proyecto te resultó útil, considera darle una estrella ⭐**
-
-![.NET](https://img.shields.io/badge/.NET-9.0-blue?logo=dotnet)
-![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue?logo=postgresql)
-![License](https://img.shields.io/badge/License-MIT-green)
-
-</div>
