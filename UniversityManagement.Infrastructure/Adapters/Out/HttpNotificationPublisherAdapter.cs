@@ -38,7 +38,6 @@ public class HttpNotificationPublisherAdapter : IMessagePublisherPort
         {
             _logger.LogInformation("Enviando notificación de matrícula vía HTTP para {StudentEmail}", message.StudentEmail);
 
-            // Convertir EnrollmentNotificationMessage al formato esperado por NotificationService
             var notificationRequest = new
             {
                 studentEmail = message.StudentEmail,

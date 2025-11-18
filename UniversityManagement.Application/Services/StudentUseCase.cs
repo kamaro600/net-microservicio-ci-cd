@@ -2,7 +2,6 @@ using UniversityManagement.Application.DTOs.Commands;
 using UniversityManagement.Application.DTOs.Queries;
 using UniversityManagement.Application.DTOs.Responses;
 using UniversityManagement.Application.Ports.In;
-using UniversityManagement.Application.Ports.Out;
 using UniversityManagement.Application.Mappers;
 using UniversityManagement.Domain.Exceptions;
 using UniversityManagement.Domain.Models;
@@ -18,15 +17,13 @@ namespace UniversityManagement.Application.Services;
 public class StudentUseCase : IStudentUseCase
 {
     private readonly IStudentRepository _studentRepository;
-    private readonly IEmailNotificationPort _notificationService;
     private readonly IStudentDomainService _studentDomainService;
 
     public StudentUseCase(
         IStudentRepository studentRepository,
-        IEmailNotificationPort notificationService, IStudentDomainService studentDomainService)
+        IStudentDomainService studentDomainService)
     {
         _studentRepository = studentRepository;
-        _notificationService = notificationService;
         _studentDomainService = studentDomainService;
     }
 
@@ -65,11 +62,6 @@ public class StudentUseCase : IStudentUseCase
 
         // Persistir usando el repositorio
         var createdStudent = await _studentRepository.CreateAsync(studentDomain);
-
-        // Enviar notificación
-        await _notificationService.SendWelcomeAsync(
-            createdStudent.Email.Value,
-            createdStudent.GetFormattedFullName());
 
         return StudentMapper.ToResponse(createdStudent);
     }
@@ -133,12 +125,7 @@ public class StudentUseCase : IStudentUseCase
         var result = await _studentRepository.DeleteAsync(command.Id);
 
         if (result)
-        {
-            await _notificationService.SendStudentUpdateNotificationAsync(
-                student.Email.Value,
-                student.GetFormattedFullName(),
-                new List<string> { "Eliminación de cuenta" });
-
+        {        
             return DeletionResponse.Success($"Estudiante con ID {command.Id} eliminado exitosamente");
         }
 

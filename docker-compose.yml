@@ -2,20 +2,11 @@ networks:
   university-network:
     driver: bridge
 
-volumes:
-  kafka-data:
-  zookeeper-data:
-
 services:
-  # ===========================================
-  # INFRASTRUCTURE SERVICES
-  # ===========================================
-  
-  # PostgreSQL Database - EXTERNAL (usando base de datos existente)
   # Los servicios se conectan usando host.docker.internal:5432
   # Asegurar que PostgreSQL esté corriendo en el host antes de iniciar los contenedores
   
-  # Zookeeper (for Kafka)
+  # Zookeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: dev_zookeeper
@@ -24,8 +15,6 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
-    # volumes:
-    #   - zookeeper-data:/var/lib/zookeeper/data
     networks:
       - university-network
     restart: unless-stopped
@@ -46,8 +35,6 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     ports:
       - "9093:9093"
-    # volumes:
-    #   - kafka-data:/var/lib/kafka/data
     networks:
       - university-network
     restart: unless-stopped
@@ -78,8 +65,8 @@ services:
     image: rabbitmq:3.12-management
     container_name: dev_rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -92,10 +79,6 @@ services:
       timeout: 10s
       retries: 5
 
-  # ===========================================
-  # UNIVERSITY MANAGEMENT SERVICES
-  # ===========================================
-
   # Authentication Service
   auth-service:
     build:
@@ -105,15 +88,14 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5063
-      # Usar ConnectionString para base de datos externa (host.docker.internal permite acceso desde contenedor al host)
-      ConnectionStrings__DefaultConnection: "${EXTERNAL_DB_CONNECTION_STRING:-Host=host.docker.internal;Port=5432;Database=UniversidadBD;Username=admin;Password=admin123}"
-      JwtSettings__SecretKey: "${JWT_SECRET_KEY:-UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security}"
+      # ✅ SEGURO: Solo usa variable de entorno, sin fallback en claro
+      ConnectionStrings__AuthConnection: ${AUTH_DB_CONNECTION_STRING}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY}
       JwtSettings__Issuer: "UniversityManagement.AuthService"
       JwtSettings__Audience: "UniversityManagement.Services"
       JwtSettings__ExpirationInMinutes: "60"
     ports:
       - "5063:5063"
-    # Sin dependencias de base de datos (usando BD externa)
     networks:
       - university-network
     restart: unless-stopped
@@ -127,23 +109,23 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5065
-      JwtSettings__SecretKey: "${JWT_SECRET_KEY:-UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security}"
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY}
       JwtSettings__Issuer: "UniversityManagement.AuthService"
       JwtSettings__Audience: "UniversityManagement.Services"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: "${RABBITMQ_USER:-guest}"
-      RabbitMQ__Password: "${RABBITMQ_PASSWORD:-guest}"
+      RabbitMQ__UserName: ${RABBITMQ_USER}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       RabbitMQ__VirtualHost: "/"
       RabbitMQ__ExchangeName: "university.notifications"
       RabbitMQ__EnrollmentQueueName: "enrollment.notifications"
       RabbitMQ__UnenrollmentQueueName: "unenrollment.notifications"
-      SmtpSettings__Host: "${SMTP_HOST:-sandbox.smtp.mailtrap.io}"
-      SmtpSettings__Port: "${SMTP_PORT:-587}"
-      SmtpSettings__Username: "${SMTP_USERNAME:-426dc672993e70}"
-      SmtpSettings__Password: "${SMTP_PASSWORD:-21bc03c1a261b7}"
+      SmtpSettings__Host: ${SMTP_HOST}
+      SmtpSettings__Port: ${SMTP_PORT}
+      SmtpSettings__Username: ${SMTP_USERNAME}
+      SmtpSettings__Password: ${SMTP_PASSWORD}
       SmtpSettings__EnableSsl: "true"
-      SmtpSettings__FromEmail: "${SMTP_FROM_EMAIL:-NOREPLY@demomailtrap.com}"
+      SmtpSettings__FromEmail: ${SMTP_FROM_EMAIL}
       SmtpSettings__FromName: "Universidad - Sistema de Matrículas"
     ports:
       - "5065:5065"
@@ -162,9 +144,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5066
-      # Usar ConnectionString para base de datos externa (host.docker.internal permite acceso desde contenedor al host)
-      ConnectionStrings__DefaultConnection: "${EXTERNAL_DB_CONNECTION_STRING:-Host=host.docker.internal;Port=5432;Database=UniversidadBD;Username=admin;Password=admin123}"
-      JwtSettings__SecretKey: "${JWT_SECRET_KEY:-UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security}"
+      ConnectionStrings__DefaultConnection: ${EXTERNAL_DB_CONNECTION_STRING}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY}
       JwtSettings__Issuer: "UniversityManagement.AuthService"
       JwtSettings__Audience: "UniversityManagement.Services"
       Kafka__BootstrapServers: "kafka:9092"
@@ -187,9 +168,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5000
-      # Usar ConnectionString para base de datos externa (host.docker.internal permite acceso desde contenedor al host)
-      ConnectionStrings__DefaultConnection: "${EXTERNAL_DB_CONNECTION_STRING:-Host=host.docker.internal;Port=5432;Database=UniversidadBD;Username=admin;Password=admin123}"
-      JwtSettings__SecretKey: "${JWT_SECRET_KEY:-UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security}"
+      ConnectionStrings__DefaultConnection: ${EXTERNAL_DB_CONNECTION_STRING}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY}
       JwtSettings__Issuer: "UniversityManagement.AuthService"
       JwtSettings__Audience: "UniversityManagement.Services"
       MicroservicesUrls__AuthService: "http://auth-service:5063"

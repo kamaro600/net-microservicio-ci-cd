@@ -1,4 +1,10 @@
+-- Crear base de datos  
+ DROP DATABASE IF EXISTS UniversidadBD;
+CREATE DATABASE UniversidadBD;
 
+
+-- Crear schema si no existe
+CREATE SCHEMA IF NOT EXISTS public;
 -- =============================================
 -- TABLAS PRINCIPALES
 -- =============================================
@@ -170,36 +176,3 @@ CREATE INDEX idx_audit_logs_event_type ON audit_logs (event_type);
 CREATE INDEX idx_audit_logs_entity ON audit_logs (entity_name, entity_id);
 CREATE INDEX idx_audit_logs_user ON audit_logs (user_id);
 CREATE INDEX idx_audit_logs_action ON audit_logs (action);
-
--- =============================================
--- VERIFICACIÓN DE LA CREACIÓN
--- =============================================
-
--- Consultar información de las tablas creadas
-SELECT 
-    schemaname,
-    tablename,
-    tableowner
-FROM pg_tables 
-WHERE schemaname = 'public'
-ORDER BY tablename;
-
--- Consultar datos insertados
-SELECT 'Facultades' as tabla, count(*) as registros FROM facultad
-UNION ALL
-SELECT 'Carreras', count(*) FROM carrera
-UNION ALL
-SELECT 'Estudiantes', count(*) FROM estudiante
-UNION ALL
-SELECT 'Profesores', count(*) FROM profesor
-UNION ALL
-SELECT 'Estudiante-Carrera', count(*) FROM estudiante_carrera
-UNION ALL
-SELECT 'Audit-Logs', count(*) FROM audit_logs
-UNION ALL
-SELECT 'Profesor-Carrera', count(*) FROM profesor_carrera;
-
--- =============================================
--- SCRIPT COMPLETADO
--- Base de datos Universidad lista para usar
--- =============================================

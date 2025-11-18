@@ -3,7 +3,7 @@ using UniversityManagement.Application.DTOs.Messages;
 namespace UniversityManagement.Application.Ports.Out;
 
 /// <summary>
-/// Puerto para el servicio de auditoría
+/// Puerto para el servicio de auditoría (kafka)
 /// </summary>
 public interface IAuditPublisherPort
 {
