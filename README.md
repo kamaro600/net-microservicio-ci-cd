@@ -309,16 +309,6 @@ docker network ls
 docker network inspect university-management_university-network
 ```
 
-### 📡 Problemas de Conectividad
-
-```bash
-# Test conectividad PostgreSQL desde contenedor
-docker run --rm --network university-management_university-network alpine nc -zv host.docker.internal 5432
-
-# Test conectividad entre servicios
-docker exec -it university-webapi curl http://university-authservice:5063/api/auth/health
-```
-
 <div align="center">
 
 **⭐ Si este proyecto te resultó útil, considera darle una estrella ⭐**
