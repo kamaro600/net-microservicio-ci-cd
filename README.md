@@ -8,7 +8,7 @@
 
 ```bash
 # 1. Clonar y navegar al proyecto
-git clone https://github.com/kamaro600/net-clean-arquitecture.git
+git clone https://github.com/kamaro600/net-microservicio.git
 cd net-clean-arquitecture
 
 # 2. Configurar variables de entorno
@@ -33,44 +33,6 @@ docker-compose up -d --build
 
 ## �️ Arquitectura de Microservicios
 
-### 🔄 Diagrama de Arquitectura
-
-```mermaid
-graph TB
-    subgraph "Frontend"
-        UI[React/Angular App]
-    end
-    
-    subgraph "API Gateway"
-        GW[API Gateway<br/>Port 5000]
-    end
-    
-    subgraph "Microservicios"
-        AUTH[Auth Service<br/>Port 5063]
-        NOTIF[Notification Service<br/>Port 5065] 
-        AUDIT[Audit Service<br/>Port 5066]
-        MAIN[WebAPI Principal<br/>Port 5000]
-    end
-    
-    subgraph "Infraestructura"
-        PG[(PostgreSQL<br/>host.docker.internal:5432)]
-        RABBIT[RabbitMQ<br/>Port 5672]
-        KAFKA[Kafka<br/>Port 9093]
-        ZK[Zookeeper<br/>Port 2181]
-    end
-    
-    UI --> GW
-    GW --> MAIN
-    GW --> AUTH
-    GW --> NOTIF
-    GW --> AUDIT
-    
-    MAIN --> PG
-    AUTH --> PG
-    NOTIF --> RABBIT
-    AUDIT --> KAFKA
-    KAFKA --> ZK
-```
 
 ### 📦 Servicios Disponibles
 
@@ -356,77 +318,6 @@ docker run --rm --network university-management_university-network alpine nc -zv
 # Test conectividad entre servicios
 docker exec -it university-webapi curl http://university-authservice:5063/api/auth/health
 ```
-
-## 📚 Patrones Arquitectónicos Implementados
-
-### 🏗️ Clean Architecture
-- **Separación de responsabilidades** en capas bien definidas
-- **Inversión de dependencias** mediante interfaces
-- **Regla de dependencias** hacia adentro solamente
-
-### 🔧 Microservicios
-- **Servicios independientes** con responsabilidades específicas
-- **Comunicación asíncrona** via RabbitMQ y Kafka
-- **Base de datos compartida** con acceso controlado
-
-### 📦 Domain Driven Design (DDD)
-- **Value Objects** con validaciones de dominio
-- **Entidades** con identidad e invariantes
-- **Servicios de dominio** para lógica compleja
-
-### 🎯 CQRS Patterns
-- **Commands** para operaciones de escritura
-- **Queries** para operaciones de lectura
-- **DTOs específicos** para cada operación
-
-## 🚀 Roadmap y Mejoras
-
-### 🔜 Próximas Implementaciones
-- [ ] **API Gateway** con Ocelot o YARP
-- [ ] **Service Discovery** con Consul
-- [ ] **Circuit Breaker** con Polly
-- [ ] **Distributed Tracing** con OpenTelemetry
-- [ ] **Caching** con Redis
-- [ ] **Rate Limiting** y throttling
-
-### 🏭 Para Producción
-- [ ] **Kubernetes** deployment manifests  
-- [ ] **Helm Charts** para gestión de releases
-- [ ] **Monitoring** con Prometheus + Grafana
-- [ ] **Centralized Logging** con ELK Stack
-- [ ] **Security Scanning** con herramientas DevSecOps
-- [ ] **Backup/Recovery** estrategias automatizadas
-
-## 👥 Contribución
-
-### 🤝 Cómo Contribuir
-1. Fork el repositorio
-2. Crear feature branch (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push branch (`git push origin feature/nueva-funcionalidad`)
-5. Crear Pull Request
-
-### 📋 Estándares de Código
-- **Seguir convenciones .NET** y Clean Code principles
-- **Tests unitarios** obligatorios para nueva funcionalidad
-- **Documentación** actualizada en README y código
-- **Docker** funcionando correctamente
-
-## 📄 Licencia
-
-Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
-
----
-
-## 📞 Soporte
-
-¿Tienes preguntas o necesitas ayuda?
-
-- 📧 **Email**: support@university-management.com  
-- 💬 **Issues**: [GitHub Issues](https://github.com/kamaro600/net-clean-arquitecture/issues)
-- 📖 **Wiki**: [Documentación completa](https://github.com/kamaro600/net-clean-arquitecture/wiki)
-
----
 
 <div align="center">
 
