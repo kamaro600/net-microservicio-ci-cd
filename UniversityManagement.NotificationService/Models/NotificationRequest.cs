@@ -1,7 +1,7 @@
 namespace UniversityManagement.NotificationService.Models;
 
 /// <summary>
-/// Modelo para solicitudes de notificación por email - idéntico al EnrollmentNotificationMessage de la aplicación principal
+/// Modelo para solicitudes de notificación por email
 /// </summary>
 public class NotificationRequest
 {
