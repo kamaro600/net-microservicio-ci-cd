@@ -1,0 +1,6 @@
+@UniversityManagement.AuditService_HostAddress = http://localhost:5082
+
+GET {{UniversityManagement.AuditService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

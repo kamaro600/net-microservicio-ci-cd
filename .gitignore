@@ -1,0 +1,66 @@
+# Archivos de Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Archivos de compilación
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+TestResults/
+out/
+*.nupkg
+*.snupkg
+
+# Carpetas específicas de Debug
+obj/debug/
+obj/Debug/
+bin/debug/
+bin/Debug/
+bin/debug/net9.0/
+bin/Debug/net9.0/
+
+# Paquetes NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Archivos de configuración local
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# Archivos de sistema
+*.DS_Store
+*.Thumbs.db
+
+# Archivos de publicación
+publish/
+*.Publish.xml
+
+# Archivos de cobertura y análisis
+coverage/
+*.coverage
+*.coveragexml
+*.sonarqube/
+
+# Archivos generados por Rider/JetBrains
+.idea/
+*.sln.iml
+
+# Archivos de logs
+*.log
+
+# Otros
+*.tmp
+*.bak
+*.swp
+
+# Carpetas de compilación
+Debug/
+debug/

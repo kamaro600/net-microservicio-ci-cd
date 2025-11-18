@@ -1,0 +1,6 @@
+@UniversityManagement.NotificationService_HostAddress = http://localhost:5283
+
+GET {{UniversityManagement.NotificationService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

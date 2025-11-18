@@ -1,0 +1,209 @@
+networks:
+  university-network:
+    driver: bridge
+
+volumes:
+  kafka-data:
+  zookeeper-data:
+
+services:
+  # ===========================================
+  # INFRASTRUCTURE SERVICES
+  # ===========================================
+  
+  # PostgreSQL Database - EXTERNAL (usando base de datos existente)
+  # Los servicios se conectan usando host.docker.internal:5432
+  # Asegurar que PostgreSQL esté corriendo en el host antes de iniciar los contenedores
+  
+  # Zookeeper (for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: dev_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    # volumes:
+    #   - zookeeper-data:/var/lib/zookeeper/data
+    networks:
+      - university-network
+    restart: unless-stopped
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: dev_kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    ports:
+      - "9093:9093"
+    # volumes:
+    #   - kafka-data:/var/lib/kafka/data
+    networks:
+      - university-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kafka UI
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: dev_kafka_ui
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "8080:8080"
+    networks:
+      - university-network
+    restart: unless-stopped
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: dev_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - university-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===========================================
+  # UNIVERSITY MANAGEMENT SERVICES
+  # ===========================================
+
+  # Authentication Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: UniversityManagement.AuthService/Dockerfile
+    container_name: university_auth_service
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5063
+      # Usar ConnectionString para base de datos externa (host.docker.internal permite acceso desde contenedor al host)
+      ConnectionStrings__DefaultConnection: "${EXTERNAL_DB_CONNECTION_STRING:-Host=host.docker.internal;Port=5432;Database=UniversidadBD;Username=admin;Password=admin123}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY:-UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security}"
+      JwtSettings__Issuer: "UniversityManagement.AuthService"
+      JwtSettings__Audience: "UniversityManagement.Services"
+      JwtSettings__ExpirationInMinutes: "60"
+    ports:
+      - "5063:5063"
+    # Sin dependencias de base de datos (usando BD externa)
+    networks:
+      - university-network
+    restart: unless-stopped
+
+  # Notification Service
+  notification-service:
+    build:
+      context: .
+      dockerfile: UniversityManagement.NotificationService/Dockerfile
+    container_name: university_notification_service
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5065
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY:-UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security}"
+      JwtSettings__Issuer: "UniversityManagement.AuthService"
+      JwtSettings__Audience: "UniversityManagement.Services"
+      RabbitMQ__HostName: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: "${RABBITMQ_USER:-guest}"
+      RabbitMQ__Password: "${RABBITMQ_PASSWORD:-guest}"
+      RabbitMQ__VirtualHost: "/"
+      RabbitMQ__ExchangeName: "university.notifications"
+      RabbitMQ__EnrollmentQueueName: "enrollment.notifications"
+      RabbitMQ__UnenrollmentQueueName: "unenrollment.notifications"
+      SmtpSettings__Host: "${SMTP_HOST:-sandbox.smtp.mailtrap.io}"
+      SmtpSettings__Port: "${SMTP_PORT:-587}"
+      SmtpSettings__Username: "${SMTP_USERNAME:-426dc672993e70}"
+      SmtpSettings__Password: "${SMTP_PASSWORD:-21bc03c1a261b7}"
+      SmtpSettings__EnableSsl: "true"
+      SmtpSettings__FromEmail: "${SMTP_FROM_EMAIL:-NOREPLY@demomailtrap.com}"
+      SmtpSettings__FromName: "Universidad - Sistema de Matrículas"
+    ports:
+      - "5065:5065"
+    depends_on:
+      - rabbitmq
+    networks:
+      - university-network
+    restart: unless-stopped
+
+  # Audit Service
+  audit-service:
+    build:
+      context: .
+      dockerfile: UniversityManagement.AuditService/Dockerfile
+    container_name: university_audit_service
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5066
+      # Usar ConnectionString para base de datos externa (host.docker.internal permite acceso desde contenedor al host)
+      ConnectionStrings__DefaultConnection: "${EXTERNAL_DB_CONNECTION_STRING:-Host=host.docker.internal;Port=5432;Database=UniversidadBD;Username=admin;Password=admin123}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY:-UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security}"
+      JwtSettings__Issuer: "UniversityManagement.AuthService"
+      JwtSettings__Audience: "UniversityManagement.Services"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "university-audit-consumer"
+      Kafka__AuditTopic: "university.audit.events"
+    ports:
+      - "5066:5066"
+    depends_on:
+      - kafka
+    networks:
+      - university-network
+    restart: unless-stopped
+
+  # Main University Management API
+  university-api:
+    build:
+      context: .
+      dockerfile: UniversityManagement.WebApi/Dockerfile
+    container_name: university_main_api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      # Usar ConnectionString para base de datos externa (host.docker.internal permite acceso desde contenedor al host)
+      ConnectionStrings__DefaultConnection: "${EXTERNAL_DB_CONNECTION_STRING:-Host=host.docker.internal;Port=5432;Database=UniversidadBD;Username=admin;Password=admin123}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY:-UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security}"
+      JwtSettings__Issuer: "UniversityManagement.AuthService"
+      JwtSettings__Audience: "UniversityManagement.Services"
+      MicroservicesUrls__AuthService: "http://auth-service:5063"
+      MicroservicesUrls__NotificationService: "http://notification-service:5065"
+      MicroservicesUrls__AuditService: "http://audit-service:5066"
+      AuthService__BaseUrl: "http://auth-service:5063"
+      AuthService__LoginEndpoint: "/api/auth/login"
+      AuthService__ValidateEndpoint: "/api/auth/validate"
+    ports:
+      - "5000:5000"
+    depends_on:
+      - auth-service
+      - notification-service
+      - audit-service
+    networks:
+      - university-network
+    restart: unless-stopped
