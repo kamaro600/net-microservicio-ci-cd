@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using UniversityManagement.AuthService.Data;
 using UniversityManagement.AuthService.DTOs;
 using UniversityManagement.AuthService.Models;
-using Npgsql;
 
 namespace UniversityManagement.AuthService.Services;
 
@@ -20,121 +19,76 @@ public class AuthenticationService : IAuthenticationService
     private readonly AuthDbContext _dbContext;
     private readonly IJwtService _jwtService;
     private readonly ILogger<AuthenticationService> _logger;
-    private readonly IConfiguration _configuration;
 
     public AuthenticationService(
         AuthDbContext dbContext,
         IJwtService jwtService,
-        ILogger<AuthenticationService> logger,
-        IConfiguration configuration)
+        ILogger<AuthenticationService> logger)
     {
         _dbContext = dbContext;
         _jwtService = jwtService;
         _logger = logger;
-        _configuration = configuration;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
         try
         {
-            var connectionString = _configuration.GetConnectionString("AuthConnection");
-            _logger.LogInformation("AuthService: Usuario: {Username}", request.Username);
-            
-            using var connection = new NpgsqlConnection(connectionString);
-            await connection.OpenAsync();
-            _logger.LogInformation("AuthService: Conexion exitosa");
-            
-            using var dbCheckCommand = new NpgsqlCommand("SELECT current_database()", connection);
-            var currentDb = await dbCheckCommand.ExecuteScalarAsync();            
-            
-            var userQuery = @"
-                SELECT id, username, email, password_hash, first_name, last_name, is_active, created_at, last_login_at
-                FROM users 
-                WHERE username = @username AND is_active = true";
-            
-            using var userCommand = new NpgsqlCommand(userQuery, connection);
-            userCommand.Parameters.AddWithValue("username", request.Username);
-            _logger.LogInformation("AuthService: Ejecutando: {Query}", userQuery);
-            User? user = null;
-            using var reader = await userCommand.ExecuteReaderAsync();
-            _logger.LogInformation("AuthService: Ejecutado");
-            
-            if (await reader.ReadAsync())
+            _logger.LogInformation("Intento de login para usuario: {Username}", request.Username);
+
+            // Validar entrada básica
+            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
             {
-                _logger.LogInformation("AuthService: Usuario encontrado");
-                user = new User
+                return new AuthResponse
                 {
-                    Id = reader.GetInt32(0), 
-                    Username = reader.GetString(1), 
-                    Email = reader.GetString(2), 
-                    PasswordHash = reader.GetString(3), 
-                    FirstName = reader.IsDBNull(4) ? "" : reader.GetString(4), 
-                    LastName = reader.IsDBNull(5) ? "" : reader.GetString(5), 
-                    IsActive = reader.GetBoolean(6), 
-                    CreatedAt = reader.GetDateTime(7), 
-                    LastLoginAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8) 
+                    Success = false,
+                    Message = "Usuario y contraseña son requeridos"
                 };
             }
-            
+
+            // Buscar usuario usando Entity Framework
+            var user = await _dbContext.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Username == request.Username && u.IsActive);
+
             if (user == null)
             {
-                _logger.LogWarning("AuthService: Usuario no encontrado: {Username}", request.Username);
+                _logger.LogWarning("Usuario no encontrado: {Username}", request.Username);
                 return new AuthResponse
                 {
                     Success = false,
-                    Message = "Usuario o password invalido"
+                    Message = "Usuario o contraseña inválidos"
                 };
             }
-            
-            _logger.LogInformation("AuthService: usuario cargo exitosamente: {UserId} - {Username}", user.Id, user.Username);
 
+            // Verificar contraseña
             if (!VerifyPassword(request.Password, user.PasswordHash))
             {
+                _logger.LogWarning("Contraseña inválida para usuario: {Username}", request.Username);
                 return new AuthResponse
                 {
                     Success = false,
-                    Message = "Usuario o password invalido"
+                    Message = "Usuario o contraseña inválidos"
                 };
             }
 
-            reader.Close();
-            
-            var rolesQuery = @"
-                SELECT r.name 
-                FROM roles r
-                INNER JOIN user_roles ur ON r.id = ur.role_id
-                WHERE ur.user_id = @userId";
-            
-            using var rolesCommand = new NpgsqlCommand(rolesQuery, connection);
-            rolesCommand.Parameters.AddWithValue("userId", user.Id);
-            
-            var roles = new List<string>();
-            using var rolesReader = await rolesCommand.ExecuteReaderAsync();
-            
-            while (await rolesReader.ReadAsync())
-            {
-                roles.Add(rolesReader.GetString(0));
-            }
-            
-            rolesReader.Close();
+            // Obtener roles del usuario
+            var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
 
             // Actualizar último login
-            var updateQuery = @"UPDATE users SET last_login_at = @lastLogin WHERE id = @userId";
-            using var updateCommand = new NpgsqlCommand(updateQuery, connection);
-            updateCommand.Parameters.AddWithValue("lastLogin", DateTime.UtcNow);
-            updateCommand.Parameters.AddWithValue("userId", user.Id);
-            await updateCommand.ExecuteNonQueryAsync();
+            user.LastLoginAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
 
             // Generar token
             var token = _jwtService.GenerateToken(user, roles);
 
-            _logger.LogInformation("User {Username} logged in successfully", user.Username);
+            _logger.LogInformation("Usuario {Username} autenticado correctamente", user.Username);
 
             return new AuthResponse
             {
                 Success = true,
-                Message = "Login successful",
+                Message = "Login exitoso",
                 Token = token,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(120),
                 User = new UserInfo
@@ -155,7 +109,7 @@ public class AuthenticationService : IAuthenticationService
             return new AuthResponse
             {
                 Success = false,
-                Message = "Un error en el login"
+                Message = "Error interno del servidor"
             };
         }
     }
@@ -164,16 +118,25 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            // Verificar si el usuario ya existe
-            var existingUser = await _dbContext.Users
-                .FromSqlRaw(@"
-                    SELECT u.id, u.username, u.email, u.password_hash, u.first_name, u.last_name, 
-                           u.is_active, u.created_at, u.last_login_at
-                    FROM users u 
-                    WHERE u.username = {0} OR u.email = {1}", request.Username, request.Email)
-                .FirstOrDefaultAsync();
+            _logger.LogInformation("Intento de registro para usuario: {Username}", request.Username);
 
-            if (existingUser != null)
+            // Validar datos de entrada
+            if (string.IsNullOrWhiteSpace(request.Username) || 
+                string.IsNullOrWhiteSpace(request.Email) || 
+                string.IsNullOrWhiteSpace(request.Password))
+            {
+                return new AuthResponse
+                {
+                    Success = false,
+                    Message = "Todos los campos son requeridos"
+                };
+            }
+
+            // Verificar si el usuario ya existe usando EF
+            var existingUser = await _dbContext.Users
+                .AnyAsync(u => u.Username == request.Username || u.Email == request.Email);
+
+            if (existingUser)
             {
                 return new AuthResponse
                 {
@@ -197,17 +160,23 @@ public class AuthenticationService : IAuthenticationService
             _dbContext.Users.Add(user);
             await _dbContext.SaveChangesAsync();
 
+            // Asignar rol por defecto "User"
+            var defaultRole = await _dbContext.Roles
+                .FirstOrDefaultAsync(r => r.Name == "User");
+            
+            var roleId = defaultRole?.Id ?? 2; // Fallback a ID 2
+
             var userRole = new UserRole
             {
                 UserId = user.Id,
-                RoleId = 2, 
+                RoleId = roleId,
                 AssignedAt = DateTime.UtcNow
             };
 
             _dbContext.UserRoles.Add(userRole);
             await _dbContext.SaveChangesAsync();
 
-
+            // Generar token
             var roles = new List<string> { "User" };
             var token = _jwtService.GenerateToken(user, roles);
 
@@ -237,7 +206,7 @@ public class AuthenticationService : IAuthenticationService
             return new AuthResponse
             {
                 Success = false,
-                Message = "Un error durante el registro"
+                Message = "Error interno del servidor durante el registro"
             };
         }
     }
@@ -310,42 +279,14 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            var connectionString = _configuration.GetConnectionString("AuthConnection");
-            
-            using var connection = new NpgsqlConnection(connectionString);
-            await connection.OpenAsync();
-            
-            var query = @"
-                SELECT id, username, email, password_hash, first_name, last_name, is_active, created_at, last_login_at
-                FROM users 
-                WHERE id = @userId AND is_active = true";
-            
-            using var command = new NpgsqlCommand(query, connection);
-            command.Parameters.AddWithValue("userId", userId);
-            
-            using var reader = await command.ExecuteReaderAsync();
-            
-            if (await reader.ReadAsync())
-            {
-                return new User
-                {
-                    Id = reader.GetInt32(0), 
-                    Username = reader.GetString(1), 
-                    Email = reader.GetString(2),
-                    PasswordHash = reader.GetString(3), 
-                    FirstName = reader.IsDBNull(4) ? "" : reader.GetString(4), 
-                    LastName = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                    IsActive = reader.GetBoolean(6), 
-                    CreatedAt = reader.GetDateTime(7), 
-                    LastLoginAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8) 
-                };
-            }
-            
-            return null;
+            return await _dbContext.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting user by ID: {UserId}", userId);
+            _logger.LogError(ex, "Error obteniendo usuario por ID: {UserId}", userId);
             return null;
         }
     }
