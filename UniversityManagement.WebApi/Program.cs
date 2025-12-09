@@ -111,8 +111,9 @@ builder.Services.AddDbContext<UniversityDbContext>(options =>
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // Configurar Health Checks - Solo PostgreSQL ya que usamos microservicios HTTP
-builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!);
+// Temporalmente deshabilitado para Railway - habilitar cuando las variables estén configuradas
+// builder.Services.AddHealthChecks()
+//     .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!);
 
 // Registrar casos de uso de Application
 builder.Services.AddScoped<IStudentUseCase, StudentUseCase>();
@@ -164,7 +165,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Configurar Health Check endpoints
-app.MapHealthChecks("/health");
+// app.MapHealthChecks("/health"); // Deshabilitado temporalmente
 
 app.MapControllers();
 
