@@ -1,5 +1,11 @@
 #!/bin/sh
 
+# Debug: Print environment variables
+echo "=== DEBUG: Environment Variables ==="
+echo "API_URL: ${API_URL}"
+echo "AUTH_URL: ${AUTH_URL}"
+echo "===================================="
+
 # Ensure assets directory exists
 mkdir -p /usr/share/nginx/html/assets
 
