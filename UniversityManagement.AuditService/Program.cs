@@ -11,10 +11,11 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Kestrel para puerto específico
+// Configurar Kestrel - Railway usa variable PORT, local usa 5066
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5066";
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(5066);
+    options.ListenAnyIP(int.Parse(port));
 });
 
 

@@ -6,10 +6,11 @@ using UniversityManagement.NotificationService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Kestrel para puerto específico
+// Configurar Kestrel - Railway usa variable PORT, local usa 5065
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5065";
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(5065); // Puerto dedicado para NotificationService - escucha en todas las interfaces
+    options.ListenAnyIP(int.Parse(port)); // Puerto dedicado para NotificationService - escucha en todas las interfaces
 });
 
 // Add services to the container.

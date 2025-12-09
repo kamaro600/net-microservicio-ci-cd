@@ -7,10 +7,11 @@ using UniversityManagement.AuthService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Kestrel para puerto específico
+// Configurar Kestrel - Railway usa variable PORT, local usa 5063
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5063";
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(5063);
+    options.ListenAnyIP(int.Parse(port));
 });
 
 builder.Services.AddControllers();
