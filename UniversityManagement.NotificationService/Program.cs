@@ -6,8 +6,9 @@ using UniversityManagement.NotificationService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Railway asigna el puerto automáticamente vía ASPNETCORE_URLS o PORT
-// No necesitamos configurar Kestrel manualmente
+// Configurar puerto - Railway usa PORT, local usa appsettings
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5065";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 // Add services to the container.
 builder.Services.AddControllers();

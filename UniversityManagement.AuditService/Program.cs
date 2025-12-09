@@ -11,8 +11,9 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Railway asigna el puerto automáticamente vía ASPNETCORE_URLS o PORT
-// No necesitamos configurar Kestrel manualmente
+// Configurar puerto - Railway usa PORT, local usa appsettings
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5066";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 
 builder.Services.AddControllers();
