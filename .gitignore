@@ -56,6 +56,23 @@ coverage/
 # Archivos de logs
 *.log
 
+# Angular / Node.js Frontend
+university-frontend/node_modules/
+university-frontend/dist/
+university-frontend/.angular/
+university-frontend/.vscode/
+university-frontend/*.log
+university-frontend/npm-debug.log*
+university-frontend/yarn-debug.log*
+university-frontend/yarn-error.log*
+university-frontend/.DS_Store
+university-frontend/coverage/
+
+# Environment variables (sensitive data)
+.env
+.env.local
+.env.*.local
+
 # Otros
 *.tmp
 *.bak

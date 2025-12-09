@@ -29,14 +29,18 @@ docker-compose up -d --build
 - **Notification Service:** `http://localhost:5065/swagger`
 - **Audit Service:** `http://localhost:5066/swagger`
 
+🎨 **Frontend Angular:**
+- **Interfaz Web:** `http://localhost:4200` (ver [university-frontend/SETUP.md](university-frontend/SETUP.md))
+
 ### 📋 Requisitos Previos
 
 - **.NET 9 SDK** o superior
 - **Docker Desktop** para Windows
 - **PostgreSQL 12+** (externo al proyecto)
+- **Node.js 18+** (para el frontend Angular)
 - **Visual Studio 2022** o **VS Code** (recomendado)
 
-## �️ Arquitectura de Microservicios
+## 🏗️ Arquitectura de Microservicios
 
 
 ### 📦 Servicios Disponibles
@@ -47,6 +51,7 @@ docker-compose up -d --build
 | **Auth Service** | 5063 | Autenticación JWT, Login, Registro | ✅ Activo |
 | **Notification Service** | 5065 | Email/SMS via RabbitMQ | ✅ Activo |
 | **Audit Service** | 5066 | Auditoría via Kafka | ✅ Activo |
+| **Frontend Angular** | 4200 | Interfaz de Usuario Web | ✅ Activo |
 | **RabbitMQ** | 5672 | Message Broker para notificaciones | ✅ Activo |
 | **Kafka** | 9093 | Event Streaming para auditoría | ✅ Activo |
 | **Zookeeper** | 2181 | Coordinación Kafka | ✅ Activo |
@@ -134,8 +139,10 @@ UniversityManagement/
 ### 📝 Variables de Entorno (.env)
 
 ```bash
-# Configuración de Base de Datos Externa
-EXTERNAL_DB_CONNECTION_STRING=Host=host.docker.internal;Port=5432;Database=UniversidadBD;Username=admin;Password=admin123
+# Configuración de Base de Datos - Neon (Serverless PostgreSQL)
+EXTERNAL_DB_CONNECTION_STRING=Host=ep-small-hill-ahyrtfg8-pooler.c-3.us-east-1.aws.neon.tech;Port=5432;Database=universidadbd;Username=neondb_owner;Password=npg_sxXN7GtgFJ2m;SSL Mode=Require;Channel Binding=require;Pooling=true
+
+AUTH_DB_CONNECTION_STRING=Host=ep-small-hill-ahyrtfg8-pooler.c-3.us-east-1.aws.neon.tech;Port=5432;Database=university_auth;Username=neondb_owner;Password=npg_sxXN7GtgFJ2m;SSL Mode=Require;Channel Binding=require;Pooling=true
 
 # JWT Configuration
 JWT_SECRET_KEY=UniversityManagement_JWT_Secret_Key_2024_Very_Long_Secret_Key_For_Security
@@ -181,9 +188,13 @@ docker-compose down -v --remove-orphans
 La aplicación se conecta a una base de datos PostgreSQL externa usando `host.docker.internal`:
 
 ```sql
--- Crear base de datos
-UniversidadBD;
-university_auth;
+-- Crear base de datos en Neon (https://neon.tech)
+-- Provider: Neon Serverless PostgreSQL
+-- Region: us-east-1 (AWS)
+
+-- Bases de datos creadas:
+universidadbd
+university_auth
 
 -- Ejecutar script completo
 database-schema.sql
