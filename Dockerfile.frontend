@@ -1,0 +1,33 @@
+# Build stage
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# Copy package files
+COPY university-frontend/package*.json ./
+RUN npm install
+
+# Copy source and build
+COPY university-frontend/ ./
+RUN npm run build
+
+# Runtime stage
+FROM nginx:alpine
+WORKDIR /usr/share/nginx/html
+
+# Copy built files
+COPY --from=build /app/dist/university-frontend/browser ./
+
+# Copy nginx config
+COPY university-frontend/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy env script
+COPY university-frontend/env.sh ./
+
+# Make script executable
+RUN chmod +x env.sh
+
+# Expose port
+EXPOSE 80
+
+# Start nginx with env substitution
+CMD ["/bin/sh", "-c", "/usr/share/nginx/html/env.sh && nginx -g 'daemon off;'"]
