@@ -216,41 +216,57 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  # Job 5: Deploy (with manual approval for production)
-  deploy-staging:
-    name: Deploy to Staging
+  # Job 5: Deploy to Railway
+  deploy-railway:
+    name: Deploy to Railway
     runs-on: ubuntu-latest
     needs: build-docker-images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment:
-      name: staging
-      url: https://staging.universidad.com
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Deploy to staging
-      run: |
-        echo "Deploying to staging environment..."
-        echo "Docker images have been built and pushed"
-        echo "Run: docker-compose -f docker-compose.staging.yml up -d"
-
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: deploy-staging
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: https://universidad.com
+    - name: Install Railway CLI
+      run: npm install -g @railway/cli
     
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Deploy to production
+    - name: Deploy Auth Service
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
-        echo "Deploying to production environment..."
-        echo "This step requires manual approval"
-        echo "Run: docker-compose -f docker-compose.prod.yml up -d"
+        railway link ${{ secrets.RAILWAY_AUTH_SERVICE_ID }}
+        railway up --service auth-service
+    
+    - name: Deploy WebAPI
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        railway link ${{ secrets.RAILWAY_WEBAPI_SERVICE_ID }}
+        railway up --service webapi
+    
+    - name: Deploy Notification Service
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        railway link ${{ secrets.RAILWAY_NOTIFICATION_SERVICE_ID }}
+        railway up --service notification
+    
+    - name: Deploy Audit Service
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        railway link ${{ secrets.RAILWAY_AUDIT_SERVICE_ID }}
+        railway up --service audit
+    
+    - name: Deploy Frontend
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        railway link ${{ secrets.RAILWAY_FRONTEND_SERVICE_ID }}
+        railway up --service frontend
+    
+    - name: Deployment Summary
+      run: |
+        echo "✅ Deployment completed successfully!"
+        echo "🚀 All services deployed to Railway"
+        echo "📦 Check your Railway dashboard for service URLs"

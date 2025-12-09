@@ -2,7 +2,7 @@
 
 ## 📋 Descripción General
 
-Este proyecto implementa un pipeline completo de CI/CD para un sistema de gestión universitaria basado en microservicios, utilizando GitHub Actions como plataforma de automatización.
+Este proyecto implementa un pipeline completo de CI/CD para un sistema de gestión universitaria basado en microservicios, utilizando GitHub Actions como plataforma de automatización y **Railway** como plataforma de despliegue en la nube.
 
 ## 🏗️ Arquitectura de Microservicios
 
@@ -334,20 +334,98 @@ ghcr.io/kamaro600/net-microservicio-ci-cd/frontend:latest
 - **SonarQube/SonarCloud**: Análisis de calidad de código
 - **GitHub Container Registry**: Almacenamiento de imágenes Docker
 
-## 🚀 Deployment
+## 🚀 Deployment en Railway
+
+### Plataforma de Despliegue
+
+Este proyecto se despliega automáticamente en **Railway** (https://railway.app), una plataforma PaaS que soporta contenedores Docker con despliegue automático desde GitHub.
 
 ### Ambientes
 
-1. **Development**: Entorno local de desarrollo
-2. **Staging**: Pre-producción para pruebas
-3. **Production**: Ambiente productivo
+- **Production**: Railway (despliegue automático desde branch `main`)
 
-### Proceso de Despliegue
+### Configuración de Railway
+
+Ver documentación completa en: **[RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)**
+
+#### Servicios Desplegados:
+1. **Auth Service**: `https://auth-service-xxx.up.railway.app`
+2. **WebAPI**: `https://webapi-xxx.up.railway.app`
+3. **Notification Service**: `https://notification-xxx.up.railway.app`
+4. **Audit Service**: `https://audit-xxx.up.railway.app`
+5. **Frontend**: `https://frontend-xxx.up.railway.app`
+
+### Proceso de Despliegue Automático
 
 ```mermaid
 graph LR
-    A[Commit] --> B[CI Build]
+    A[Commit a main] --> B[CI Build]
     B --> C[Tests]
+    C --> D[SonarQube]
+    D --> E[Build Docker Images]
+    E --> F[Push to GHCR]
+    F --> G[Deploy to Railway]
+    G --> H[Services Live]
+```
+
+### Secrets Requeridos en GitHub
+
+Para habilitar el despliegue automático, configurar en **GitHub Secrets**:
+
+```
+RAILWAY_TOKEN                    # Token de autenticación de Railway
+RAILWAY_AUTH_SERVICE_ID          # Service ID del Auth Service
+RAILWAY_WEBAPI_SERVICE_ID        # Service ID del WebAPI
+RAILWAY_NOTIFICATION_SERVICE_ID  # Service ID del Notification Service
+RAILWAY_AUDIT_SERVICE_ID         # Service ID del Audit Service
+RAILWAY_FRONTEND_SERVICE_ID      # Service ID del Frontend
+```
+
+### Variables de Entorno en Railway
+
+Cada servicio en Railway debe tener configuradas sus variables de entorno:
+
+#### Auth Service:
+```env
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://0.0.0.0:5063
+ConnectionStrings__DefaultConnection=<NEON_POSTGRES_URL>
+Jwt__Key=<JWT_SECRET_KEY>
+RabbitMQ__HostName=<RAILWAY_RABBITMQ_HOST>
+```
+
+#### WebAPI:
+```env
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://0.0.0.0:5000
+ConnectionStrings__DefaultConnection=<NEON_POSTGRES_URL>
+AuthService__Url=<AUTH_SERVICE_RAILWAY_URL>
+```
+
+#### Frontend:
+```env
+API_URL=<WEBAPI_RAILWAY_URL>
+AUTH_URL=<AUTH_SERVICE_RAILWAY_URL>
+```
+
+### Dominio Personalizado
+
+Railway permite configurar dominios personalizados en cada servicio:
+
+1. En Railway Dashboard → Service → Settings → Networking
+2. Click en "Custom Domain"
+3. Agregar dominio: `auth.tudominio.com`, `api.tudominio.com`, etc.
+4. Configurar DNS con CNAME apuntando a Railway
+
+Railway genera certificados SSL automáticamente para dominios personalizados.
+
+### Monitoreo en Railway
+
+Railway proporciona:
+- **Logs en tiempo real** de cada servicio
+- **Métricas de uso**: CPU, RAM, Network
+- **Deploy history**: Historial de despliegues
+- **Health checks**: Verificación automática de salud
     C --> D[SonarQube]
     D --> E{Quality Gate}
     E -->|Pass| F[Build Images]
