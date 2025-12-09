@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Ensure assets directory exists
+mkdir -p /usr/share/nginx/html/assets
+
 # Create env-config.js with environment variables
 cat <<EOF > /usr/share/nginx/html/assets/env-config.js
 window.__env = {

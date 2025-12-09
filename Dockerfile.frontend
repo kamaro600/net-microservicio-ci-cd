@@ -26,8 +26,9 @@ COPY university-frontend/env.sh ./
 # Make script executable
 RUN chmod +x env.sh
 
-# Expose port
+# Expose port (Railway uses $PORT)
 EXPOSE 80
 
 # Start nginx with env substitution
-CMD ["/bin/sh", "-c", "/usr/share/nginx/html/env.sh && nginx -g 'daemon off;'"]
+# Railway: Run env.sh first, then start nginx
+CMD ["/bin/sh", "-c", "sh /usr/share/nginx/html/env.sh && nginx -g 'daemon off;'"]
