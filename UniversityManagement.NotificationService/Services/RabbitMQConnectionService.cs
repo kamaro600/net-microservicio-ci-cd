@@ -30,6 +30,14 @@ public class RabbitMQConnectionService : IDisposable
     {
         try
         {
+            // Log de configuración para debug
+            _logger.LogInformation("=== RabbitMQ Configuration ===");
+            _logger.LogInformation("HostName: {HostName}", _settings.HostName ?? "NULL");
+            _logger.LogInformation("Port: {Port}", _settings.Port);
+            _logger.LogInformation("UserName: {UserName}", _settings.UserName ?? "NULL");
+            _logger.LogInformation("VirtualHost: {VirtualHost}", _settings.VirtualHost ?? "NULL");
+            _logger.LogInformation("==============================");
+
             var factory = new ConnectionFactory()
             {
                 HostName = _settings.HostName,
@@ -49,6 +57,7 @@ public class RabbitMQConnectionService : IDisposable
                 SocketWriteTimeout = TimeSpan.FromSeconds(30)
             };
 
+            _logger.LogInformation("Intentando conectar a RabbitMQ...");
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
