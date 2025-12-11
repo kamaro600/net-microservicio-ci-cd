@@ -36,7 +36,17 @@ public class RabbitMQConnectionService : IDisposable
                 Port = _settings.Port,
                 UserName = _settings.UserName,
                 Password = _settings.Password,
-                VirtualHost = _settings.VirtualHost
+                VirtualHost = _settings.VirtualHost,
+                // Configurar SSL para CloudAMQP
+                Ssl = new SslOption
+                {
+                    Enabled = true,
+                    ServerName = _settings.HostName,
+                    Version = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+                },
+                RequestedConnectionTimeout = TimeSpan.FromSeconds(30),
+                SocketReadTimeout = TimeSpan.FromSeconds(30),
+                SocketWriteTimeout = TimeSpan.FromSeconds(30)
             };
 
             _connection = factory.CreateConnection();
