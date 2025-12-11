@@ -43,7 +43,9 @@ public class EmailService : IEmailService
             using var smtpClient = new SmtpClient(_smtpSettings.Host, _smtpSettings.Port)
             {
                 Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password),
-                EnableSsl = _smtpSettings.EnableSsl
+                EnableSsl = _smtpSettings.EnableSsl,
+                Timeout = 10000, // 10 segundos timeout
+                DeliveryMethod = SmtpDeliveryMethod.Network
             };
 
             _logger.LogInformation("SmtpClient configurado, preparando mensaje...");
@@ -64,18 +66,24 @@ public class EmailService : IEmailService
             message.From = new MailAddress(_smtpSettings.FromEmail, _smtpSettings.FromName);
             
             _logger.LogInformation("Enviando mensaje vía SMTP...");
-            await smtpClient.SendMailAsync(message);
+            
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            await smtpClient.SendMailAsync(message, cts.Token);
 
             _logger.LogInformation("✅ Email de confirmación de matrícula enviado exitosamente a {email}", email);
         }
         catch (SmtpException smtpEx)
         {
-            _logger.LogError(smtpEx, "❌ Error SMTP enviando Email a {email}. StatusCode: {status}", email, smtpEx.StatusCode);
+            _logger.LogError(smtpEx, "❌ Error SMTP enviando Email a {email}. StatusCode: {status}, Message: {message}", 
+                email, smtpEx.StatusCode, smtpEx.Message);
+        }
+        catch (TaskCanceledException)
+        {
+            _logger.LogError("❌ Timeout enviando Email a {email}. SMTP no respondió en 15 segundos. Posible bloqueo de puerto o credenciales incorrectas.", email);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Error general enviando Email de confirmación de matrícula a {email}", email);
-            throw;
+            _logger.LogError(ex, "❌ Error general enviando Email de confirmación de matrícula a {email}. Tipo: {type}", email, ex.GetType().Name);
         }
     }
 
