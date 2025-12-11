@@ -33,13 +33,20 @@ public class EmailService : IEmailService
     {
         try
         {
-            _logger.LogInformation("Enviando Email de confirmación de matrícula a {email}: {Message}", email, ownerName);
+            _logger.LogInformation("=== Iniciando envío de Email de matrícula ===");
+            _logger.LogInformation("Destinatario: {email}", email);
+            _logger.LogInformation("SMTP Host: {host}:{port}", _smtpSettings.Host, _smtpSettings.Port);
+            _logger.LogInformation("SMTP User: {user}", _smtpSettings.Username);
+            _logger.LogInformation("SSL Enabled: {ssl}", _smtpSettings.EnableSsl);
+            _logger.LogInformation("From: {from}", _smtpSettings.FromEmail);
 
             using var smtpClient = new SmtpClient(_smtpSettings.Host, _smtpSettings.Port)
             {
                 Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password),
                 EnableSsl = _smtpSettings.EnableSsl
             };
+
+            _logger.LogInformation("SmtpClient configurado, preparando mensaje...");
 
             var message = new MailMessage(_smtpSettings.FromEmail, email)
             {
@@ -55,13 +62,20 @@ public class EmailService : IEmailService
             };
 
             message.From = new MailAddress(_smtpSettings.FromEmail, _smtpSettings.FromName);
+            
+            _logger.LogInformation("Enviando mensaje vía SMTP...");
             await smtpClient.SendMailAsync(message);
 
-            _logger.LogInformation("Email de confirmación de matrícula enviado exitosamente a {email}", email);
+            _logger.LogInformation("✅ Email de confirmación de matrícula enviado exitosamente a {email}", email);
+        }
+        catch (SmtpException smtpEx)
+        {
+            _logger.LogError(smtpEx, "❌ Error SMTP enviando Email a {email}. StatusCode: {status}", email, smtpEx.StatusCode);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error enviando Email de confirmación de matrícula a {email}", email);
+            _logger.LogError(ex, "❌ Error general enviando Email de confirmación de matrícula a {email}", email);
+            throw;
         }
     }
 
