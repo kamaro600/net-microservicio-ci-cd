@@ -43,7 +43,7 @@ builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpS
 
 // Registrar servicios
 builder.Services.AddSingleton<RabbitMQConnectionService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHttpClient<IEmailService, EmailService>(); // HttpClient para Mailtrap API
 builder.Services.AddHostedService<NotificationConsumerService>();
 
 // Configurar Swagger/OpenAPI

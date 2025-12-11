@@ -29,4 +29,7 @@ public class SmtpSettings
     public bool EnableSsl { get; set; } = true;
     public string FromEmail { get; set; } = "noreply@universidad.edu";
     public string FromName { get; set; } = "Universidad Management System";
+    public string ApiToken { get; set; } = string.Empty; // Para Mailtrap API
+    public string ApiUrl { get; set; } = "https://send.api.mailtrap.io/api/send"; // Mailtrap API endpoint
+    public bool UseApi { get; set; } = false; // true = usar API, false = usar SMTP
 }

@@ -1,5 +1,7 @@
 using System.Net.Mail;
 using System.Net;
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using UniversityManagement.NotificationService.Configuration;
 
@@ -20,13 +22,16 @@ public class EmailService : IEmailService
 {
     private readonly ILogger<EmailService> _logger;
     private readonly SmtpSettings _smtpSettings;
+    private readonly HttpClient _httpClient;
 
     public EmailService(
         ILogger<EmailService> logger,
-        IOptions<SmtpSettings> smtpSettings)
+        IOptions<SmtpSettings> smtpSettings,
+        HttpClient httpClient)
     {
         _logger = logger;
         _smtpSettings = smtpSettings.Value;
+        _httpClient = httpClient;
     }
 
     public async Task SendEnrollmentConfirmationAsync(string email, string ownerName, string course, DateTime enrollmentDate)
@@ -35,56 +40,115 @@ public class EmailService : IEmailService
         {
             _logger.LogInformation("=== Iniciando envío de Email de matrícula ===");
             _logger.LogInformation("Destinatario: {email}", email);
-            _logger.LogInformation("SMTP Host: {host}:{port}", _smtpSettings.Host, _smtpSettings.Port);
-            _logger.LogInformation("SMTP User: {user}", _smtpSettings.Username);
-            _logger.LogInformation("SSL Enabled: {ssl}", _smtpSettings.EnableSsl);
-            _logger.LogInformation("From: {from}", _smtpSettings.FromEmail);
+            _logger.LogInformation("Método: {method}", _smtpSettings.UseApi ? "Mailtrap API" : "SMTP");
 
-            using var smtpClient = new SmtpClient(_smtpSettings.Host, _smtpSettings.Port)
+            if (_smtpSettings.UseApi)
             {
-                Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password),
-                EnableSsl = _smtpSettings.EnableSsl,
-                Timeout = 10000, // 10 segundos timeout
-                DeliveryMethod = SmtpDeliveryMethod.Network
-            };
-
-            _logger.LogInformation("SmtpClient configurado, preparando mensaje...");
-
-            var message = new MailMessage(_smtpSettings.FromEmail, email)
+                await SendViaMailtrapApiAsync(email, ownerName, course, enrollmentDate, isEnrollment: true);
+            }
+            else
             {
-                Subject = "Confirmación de Matrícula - Universidad",
-                Body = $@"
-                    <h2>¡Hola {ownerName}!</h2>
-                    <p>Te confirmamos que tu matrícula para <strong>{course}</strong> se completó exitosamente el día {enrollmentDate:dd/MM/yyyy}.</p>
-                    <p>¡Bienvenido a nuestra universidad! Esperamos que tengas una excelente experiencia académica.</p>
-                    <br>
-                    <p>Saludos,<br>{_smtpSettings.FromName}</p>
-                ",
-                IsBodyHtml = true
-            };
-
-            message.From = new MailAddress(_smtpSettings.FromEmail, _smtpSettings.FromName);
-            
-            _logger.LogInformation("Enviando mensaje vía SMTP...");
-            
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            await smtpClient.SendMailAsync(message, cts.Token);
+                await SendViaSmtpAsync(email, ownerName, course, enrollmentDate, isEnrollment: true);
+            }
 
             _logger.LogInformation("✅ Email de confirmación de matrícula enviado exitosamente a {email}", email);
         }
-        catch (SmtpException smtpEx)
-        {
-            _logger.LogError(smtpEx, "❌ Error SMTP enviando Email a {email}. StatusCode: {status}, Message: {message}", 
-                email, smtpEx.StatusCode, smtpEx.Message);
-        }
         catch (TaskCanceledException)
         {
-            _logger.LogError("❌ Timeout enviando Email a {email}. SMTP no respondió en 15 segundos. Posible bloqueo de puerto o credenciales incorrectas.", email);
+            _logger.LogError("❌ Timeout enviando Email a {email}. El servicio no respondió en 15 segundos. Posible bloqueo de puerto o credenciales incorrectas.", email);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Error general enviando Email de confirmación de matrícula a {email}. Tipo: {type}", email, ex.GetType().Name);
         }
+    }
+
+    private async Task SendViaMailtrapApiAsync(string email, string ownerName, string course, DateTime enrollmentDate, bool isEnrollment)
+    {
+        _logger.LogInformation("API URL: {url}", _smtpSettings.ApiUrl);
+        _logger.LogInformation("API Token: {token}", _smtpSettings.ApiToken?.Substring(0, Math.Min(10, _smtpSettings.ApiToken?.Length ?? 0)) + "...");
+
+        var emailPayload = new
+        {
+            from = new { email = _smtpSettings.FromEmail, name = _smtpSettings.FromName },
+            to = new[] { new { email = email } },
+            subject = isEnrollment ? "Confirmación de Matrícula - Universidad" : "Cancelación de Matrícula - Universidad",
+            html = isEnrollment 
+                ? $@"<h2>¡Hola {ownerName}!</h2>
+                    <p>Te confirmamos que tu matrícula para <strong>{course}</strong> se completó exitosamente el día {enrollmentDate:dd/MM/yyyy}.</p>
+                    <p>¡Bienvenido a nuestra universidad! Esperamos que tengas una excelente experiencia académica.</p>
+                    <br>
+                    <p>Saludos,<br>{_smtpSettings.FromName}</p>"
+                : $@"<h2>Hola {ownerName},</h2>
+                    <p>Te confirmamos que tu cancelación de matrícula para <strong>{course}</strong> se completó el día {enrollmentDate:dd/MM/yyyy}.</p>
+                    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+                    <br>
+                    <p>Saludos,<br>{_smtpSettings.FromName}</p>"
+        };
+
+        var json = JsonSerializer.Serialize(emailPayload);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        _httpClient.DefaultRequestHeaders.Clear();
+        _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_smtpSettings.ApiToken}");
+        _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+
+        _logger.LogInformation("Enviando Email vía Mailtrap API...");
+        
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var response = await _httpClient.PostAsync(_smtpSettings.ApiUrl, content, cts.Token);
+
+        var responseBody = await response.Content.ReadAsStringAsync(cts.Token);
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("❌ Error en Mailtrap API. Status: {status}, Response: {response}", response.StatusCode, responseBody);
+            throw new HttpRequestException($"Mailtrap API error: {response.StatusCode} - {responseBody}");
+        }
+
+        _logger.LogInformation("✅ Respuesta Mailtrap API: {response}", responseBody);
+    }
+
+    private async Task SendViaSmtpAsync(string email, string ownerName, string course, DateTime enrollmentDate, bool isEnrollment)
+    {
+        _logger.LogInformation("SMTP Host: {host}:{port}", _smtpSettings.Host, _smtpSettings.Port);
+        _logger.LogInformation("SMTP User: {user}", _smtpSettings.Username);
+        _logger.LogInformation("SSL Enabled: {ssl}", _smtpSettings.EnableSsl);
+        _logger.LogInformation("From: {from}", _smtpSettings.FromEmail);
+
+        using var smtpClient = new SmtpClient(_smtpSettings.Host, _smtpSettings.Port)
+        {
+            Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password),
+            EnableSsl = _smtpSettings.EnableSsl,
+            Timeout = 10000, // 10 segundos timeout
+            DeliveryMethod = SmtpDeliveryMethod.Network
+        };
+
+        _logger.LogInformation("SmtpClient configurado, preparando mensaje...");
+
+        var message = new MailMessage(_smtpSettings.FromEmail, email)
+        {
+            Subject = isEnrollment ? "Confirmación de Matrícula - Universidad" : "Cancelación de Matrícula - Universidad",
+            Body = isEnrollment 
+                ? $@"<h2>¡Hola {ownerName}!</h2>
+                    <p>Te confirmamos que tu matrícula para <strong>{course}</strong> se completó exitosamente el día {enrollmentDate:dd/MM/yyyy}.</p>
+                    <p>¡Bienvenido a nuestra universidad! Esperamos que tengas una excelente experiencia académica.</p>
+                    <br>
+                    <p>Saludos,<br>{_smtpSettings.FromName}</p>"
+                : $@"<h2>Hola {ownerName},</h2>
+                    <p>Te confirmamos que tu cancelación de matrícula para <strong>{course}</strong> se completó el día {enrollmentDate:dd/MM/yyyy}.</p>
+                    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+                    <br>
+                    <p>Saludos,<br>{_smtpSettings.FromName}</p>",
+            IsBodyHtml = true
+        };
+
+        message.From = new MailAddress(_smtpSettings.FromEmail, _smtpSettings.FromName);
+        
+        _logger.LogInformation("Enviando mensaje vía SMTP...");
+        
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await smtpClient.SendMailAsync(message, cts.Token);
     }
 
     public async Task SendEnrollmentCancellationAsync(string email, string ownerName, string course, DateTime enrollmentDate)
@@ -93,33 +157,21 @@ public class EmailService : IEmailService
         {
             _logger.LogInformation("Enviando Email de cancelación de matrícula a {email}: {Message}", email, ownerName);
 
-            using var smtpClient = new SmtpClient(_smtpSettings.Host, _smtpSettings.Port)
+            if (_smtpSettings.UseApi)
             {
-                Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password),
-                EnableSsl = _smtpSettings.EnableSsl
-            };
-
-            var message = new MailMessage(_smtpSettings.FromEmail, email)
+                await SendViaMailtrapApiAsync(email, ownerName, course, enrollmentDate, isEnrollment: false);
+            }
+            else
             {
-                Subject = "Cancelación de Matrícula - Universidad",
-                Body = $@"
-                    <h2>Hola {ownerName},</h2>
-                    <p>Te confirmamos que tu cancelación de matrícula para <strong>{course}</strong> se completó el día {enrollmentDate:dd/MM/yyyy}.</p>
-                    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
-                    <br>
-                    <p>Saludos,<br>{_smtpSettings.FromName}</p>
-                ",
-                IsBodyHtml = true
-            };
-
-            message.From = new MailAddress(_smtpSettings.FromEmail, _smtpSettings.FromName);
-            await smtpClient.SendMailAsync(message);
+                await SendViaSmtpAsync(email, ownerName, course, enrollmentDate, isEnrollment: false);
+            }
 
             _logger.LogInformation("Email de cancelación de matrícula enviado exitosamente a {email}", email);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error enviando Email de cancelación de matrícula a {email}", email);
+            throw;
         }
     }
 
