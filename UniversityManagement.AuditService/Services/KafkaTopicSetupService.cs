@@ -69,7 +69,11 @@ public class KafkaTopicSetupService : IHostedService
         var adminConfig = new AdminClientConfig
         {
             BootstrapServers = _bootstrapServers,
-            SecurityProtocol = SecurityProtocol.Plaintext
+            // Confluent Cloud SASL Authentication
+            SecurityProtocol = SecurityProtocol.SaslSsl,
+            SaslMechanism = SaslMechanism.Plain,
+            SaslUsername = _configuration["Kafka:SaslUsername"],
+            SaslPassword = _configuration["Kafka:SaslPassword"]
         };
 
         using var adminClient = new AdminClientBuilder(adminConfig).Build();

@@ -29,7 +29,12 @@ public class KafkaConsumerService : BackgroundService
             EnableAutoCommit = false,
             SessionTimeoutMs = 6000,
             HeartbeatIntervalMs = 3000,
-            MaxPollIntervalMs = 300000
+            MaxPollIntervalMs = 300000,
+            // Confluent Cloud SASL Authentication
+            SecurityProtocol = SecurityProtocol.SaslSsl,
+            SaslMechanism = SaslMechanism.Plain,
+            SaslUsername = configuration["Kafka:SaslUsername"],
+            SaslPassword = configuration["Kafka:SaslPassword"]
         };
 
         _consumer = new ConsumerBuilder<string, string>(config)

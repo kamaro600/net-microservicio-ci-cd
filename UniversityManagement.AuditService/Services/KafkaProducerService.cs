@@ -28,7 +28,12 @@ public class KafkaProducerService : IKafkaProducerService
             Acks = Acks.Leader,
             MessageSendMaxRetries = 3,
             RetryBackoffMs = 1000,
-            DeliveryReportFields = "all"
+            DeliveryReportFields = "all",
+            // Confluent Cloud SASL Authentication
+            SecurityProtocol = SecurityProtocol.SaslSsl,
+            SaslMechanism = SaslMechanism.Plain,
+            SaslUsername = _configuration["Kafka:SaslUsername"],
+            SaslPassword = _configuration["Kafka:SaslPassword"]
         };
 
         _producer = new ProducerBuilder<string, string>(config).Build();
