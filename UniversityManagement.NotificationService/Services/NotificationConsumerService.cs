@@ -33,11 +33,14 @@ public class NotificationConsumerService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Servicio Consumidor de RabbitMQ para NotificationService iniciado");
+        _logger.LogInformation("=== Notification Consumer Service Starting ===");
+        _logger.LogInformation("Enrollment Queue: {Queue}", _settings.EnrollmentQueueName);
+        _logger.LogInformation("Unenrollment Queue: {Queue}", _settings.UnenrollmentQueueName);
 
         try
         {
             _channel = _connectionService.GetChannel();
+            _logger.LogInformation("✅ RabbitMQ Channel obtenido exitosamente");
 
             // Configurar el consumidor para matrículas
             var enrollmentConsumer = new EventingBasicConsumer(_channel);
