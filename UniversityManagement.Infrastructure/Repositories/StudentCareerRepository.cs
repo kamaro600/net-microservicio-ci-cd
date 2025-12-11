@@ -38,7 +38,7 @@ public class StudentCareerRepository : IStudentCareerRepository
             .Include(sc => sc.Student)
             .Include(sc => sc.Career)
                 .ThenInclude(c => c.Faculty)
-            .Where(sc => sc.StudentId == studentId && sc.Activo)
+            .Where(sc => sc.StudentId == studentId && sc.IsActive)
             .ToListAsync();
 
         return dataModels.Select(_mapper.DataModelToDomain);
@@ -50,7 +50,7 @@ public class StudentCareerRepository : IStudentCareerRepository
             .Include(sc => sc.Student)
             .Include(sc => sc.Career)
                 .ThenInclude(c => c.Faculty)
-            .Where(sc => sc.CareerId == careerId && sc.Activo)
+            .Where(sc => sc.CareerId == careerId && sc.IsActive)
             .ToListAsync();
 
         return dataModels.Select(_mapper.DataModelToDomain);
