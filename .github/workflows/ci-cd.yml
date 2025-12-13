@@ -113,12 +113,66 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
     
+    - name: Wait for Quality Gate
+      run: sleep 10
+    
     - name: Quality Gate check
-      uses: sonarsource/sonarqube-quality-gate-action@master
-      timeout-minutes: 5
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      run: |
+        # SonarScanner para .NET genera el archivo en una ubicación diferente
+        REPORT_PATH=".sonarqube/out/.sonar/report-task.txt"
+        
+        if [ ! -f "$REPORT_PATH" ]; then
+          echo "Error: Report file not found at $REPORT_PATH"
+          exit 1
+        fi
+        
+        # Extraer URL del reporte
+        CE_TASK_ID=$(grep ceTaskId= $REPORT_PATH | cut -d'=' -f2)
+        PROJECT_KEY=$(grep projectKey= $REPORT_PATH | cut -d'=' -f2)
+        
+        echo "Checking Quality Gate for task: $CE_TASK_ID"
+        echo "Project: $PROJECT_KEY"
+        
+        # Esperar a que el análisis termine (máximo 5 minutos)
+        MAX_ATTEMPTS=30
+        ATTEMPT=0
+        
+        while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+          ANALYSIS_STATUS=$(curl -s -u $SONAR_TOKEN: \
+            "https://sonarcloud.io/api/ce/task?id=$CE_TASK_ID" \
+            | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+          
+          echo "Analysis status: $ANALYSIS_STATUS (attempt $((ATTEMPT+1))/$MAX_ATTEMPTS)"
+          
+          if [ "$ANALYSIS_STATUS" = "SUCCESS" ]; then
+            # Obtener el Quality Gate status
+            QG_STATUS=$(curl -s -u $SONAR_TOKEN: \
+              "https://sonarcloud.io/api/qualitygates/project_status?projectKey=$PROJECT_KEY" \
+              | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+            
+            echo "Quality Gate Status: $QG_STATUS"
+            
+            if [ "$QG_STATUS" = "OK" ] || [ "$QG_STATUS" = "WARN" ]; then
+              echo "✅ Quality Gate passed!"
+              exit 0
+            else
+              echo "❌ Quality Gate failed!"
+              echo "View details at: https://sonarcloud.io/dashboard?id=$PROJECT_KEY"
+              exit 1
+            fi
+          elif [ "$ANALYSIS_STATUS" = "FAILED" ]; then
+            echo "❌ Analysis failed!"
+            exit 1
+          fi
+          
+          ATTEMPT=$((ATTEMPT+1))
+          sleep 10
+        done
+        
+        echo "⚠️ Timeout waiting for analysis to complete"
+        exit 1
 
   # Job 3: Build Frontend
   build-frontend:
