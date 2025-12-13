@@ -272,57 +272,7 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  # Job 5: Deploy to Railway
-  deploy-railway:
-    name: Deploy to Railway
-    runs-on: ubuntu-latest
-    needs: build-docker-images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Install Railway CLI
-      run: npm install -g @railway/cli
-    
-    - name: Deploy Auth Service
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        railway link ${{ secrets.RAILWAY_AUTH_SERVICE_ID }}
-        railway up --service auth-service
-    
-    - name: Deploy WebAPI
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        railway link ${{ secrets.RAILWAY_WEBAPI_SERVICE_ID }}
-        railway up --service webapi
-    
-    - name: Deploy Notification Service
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        railway link ${{ secrets.RAILWAY_NOTIFICATION_SERVICE_ID }}
-        railway up --service notification
-    
-    - name: Deploy Audit Service
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        railway link ${{ secrets.RAILWAY_AUDIT_SERVICE_ID }}
-        railway up --service audit
-    
-    - name: Deploy Frontend
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        railway link ${{ secrets.RAILWAY_FRONTEND_SERVICE_ID }}
-        railway up --service frontend
-    
-    - name: Deployment Summary
-      run: |
-        echo "✅ Deployment completed successfully!"
-        echo "🚀 All services deployed to Railway"
-        echo "📦 Check your Railway dashboard for service URLs"
+  # Job 5: Railway Auto-Deploy
+  # Railway is configured to auto-deploy when CI passes
+  # Enable "Wait for CI" in Railway settings for each service
+  # No manual deploy needed - Railway handles it automatically after Docker images are built
