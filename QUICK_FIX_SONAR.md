@@ -13,21 +13,39 @@ El pipeline está configurado correctamente, pero **faltan los secrets de SonarC
 4. Autoriza SonarCloud
 
 ### 📝 PASO 2: Importar tu Proyecto
-1. Una vez dentro de SonarCloud, click en **"+"** → **"Analyze new project"**
+1. Una vez dentro de SonarCloud, click en **"+"** (arriba derecha) → **"Analyze new project"**
 2. Busca y selecciona: **`net-microservicio-ci-cd`**
 3. Click en **"Set Up"**
-4. Selecciona: **"With GitHub Actions"**
+4. Si te pregunta el método de análisis:
+   - Selecciona **"With GitHub Actions"** o **"GitHub Actions"**
+   - Si NO aparece esa opción, selecciona **"Other CI"** o **"Manually"**
 
-### 📝 PASO 3: Copiar Información de SonarCloud
-SonarCloud te mostrará una pantalla con:
+### 📝 PASO 3: Generar Token de SonarCloud
 
+#### Opción A: Si SonarCloud te muestra el token automáticamente
+SonarCloud puede mostrarte una pantalla con:
 ```
 Organization: kamaro600
 Project Key: kamaro600_net-microservicio-ci-cd
-Token: [un código largo] ← ⚠️ COPIA ESTO AHORA (solo se muestra una vez)
+Token: [un código largo] ← ⚠️ COPIA ESTO AHORA
 ```
 
-**⚠️ MUY IMPORTANTE**: Copia el **Token** ahora mismo, no se volverá a mostrar.
+#### Opción B: Generar Token Manualmente (si no se mostró)
+1. En SonarCloud, click en tu avatar (arriba derecha)
+2. **"My Account"** → **"Security"** tab
+3. En **"Generate Tokens"**:
+   - Token Name: `GitHub Actions`
+   - Type: **"Global Analysis Token"** o **"User Token"**
+   - Expires in: **"No expiration"** o **"90 days"**
+4. Click **"Generate"**
+5. **⚠️ COPIA EL TOKEN** (solo se muestra una vez)
+
+### 📝 PASO 3.5: Verificar Organization y Project Key
+
+Ve a tu proyecto en SonarCloud y verifica:
+- URL será algo como: `https://sonarcloud.io/dashboard?id=kamaro600_net-microservicio-ci-cd`
+- El **Project Key** está después de `?id=`
+- Tu **Organization** es: `kamaro600`
 
 ### 📝 PASO 4: Agregar Secrets en GitHub
 
