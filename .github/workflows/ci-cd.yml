@@ -102,6 +102,7 @@ jobs:
           /d:sonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
           /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.cobertura.xml" \
+          /d:sonar.exclusions="**/university-frontend/**,**/node_modules/**,**/dist/**,**/bin/**,**/obj/**" \
           /d:sonar.coverage.exclusions="**Tests**.cs,**/Program.cs,**/Migrations/**"
     
     - name: Build for analysis
