@@ -273,6 +273,6 @@ jobs:
         cache-to: type=gha,mode=max
 
   # Job 5: Railway Auto-Deploy
-  # Railway is configured to auto-deploy when CI passes
-  # Enable "Wait for CI" in Railway settings for each service
-  # No manual deploy needed - Railway handles it automatically after Docker images are built
+  # Railway is configured to auto-deploy from GitHub source
+  # When "Wait for CI" is enabled, Railway will deploy after this workflow completes successfully
+  # No manual deployment needed - Railway detects pushes and builds from Dockerfiles automatically
