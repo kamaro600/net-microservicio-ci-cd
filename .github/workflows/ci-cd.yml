@@ -97,7 +97,8 @@ jobs:
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       run: |
         dotnet sonarscanner begin \
-          /k:"university-management-microservices" \
+          /k:"kamaro600_net-microservicio-ci-cd" \
+          /o:"kamaro600" \
           /d:sonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
           /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.cobertura.xml" \
