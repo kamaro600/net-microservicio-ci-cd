@@ -1,32 +1,26 @@
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
-WORKDIR /app
-EXPOSE 5066
-
+# Build stage
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copiar archivos de proyecto
+# Copy csproj files and restore
 COPY ["UniversityManagement.AuditService/UniversityManagement.AuditService.csproj", "UniversityManagement.AuditService/"]
-
-# Restaurar dependencias NuGet
+COPY ["UniversityManagement.Domain/UniversityManagement.Domain.csproj", "UniversityManagement.Domain/"]
+COPY ["UniversityManagement.Infrastructure/UniversityManagement.Infrastructure.csproj", "UniversityManagement.Infrastructure/"]
+COPY ["UniversityManagement.Application/UniversityManagement.Application.csproj", "UniversityManagement.Application/"]
 RUN dotnet restore "UniversityManagement.AuditService/UniversityManagement.AuditService.csproj"
 
-# Copiar el código fuente y compilar
+# Copy everything else and build
 COPY . .
 WORKDIR "/src/UniversityManagement.AuditService"
-RUN dotnet build "UniversityManagement.AuditService.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "UniversityManagement.AuditService.csproj" -c Release -o /app/build
 
+# Publish stage
 FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "UniversityManagement.AuditService.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "UniversityManagement.AuditService.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-FROM base AS final
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
+EXPOSE 5066
 COPY --from=publish /app/publish .
-
-# Configurar variables de entorno para producción
-ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_URLS=http://+:5066
-
 ENTRYPOINT ["dotnet", "UniversityManagement.AuditService.dll"]

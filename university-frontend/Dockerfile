@@ -1,33 +1,34 @@
-# Stage 1: Build Angular App
+# Build stage
 FROM node:20-alpine AS build
-
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
 
-# Copy source code
-COPY . .
+# Copy source and build
+COPY . ./
+RUN npm run build
 
-# Build for production
-RUN npm run build --prod
-
-# Stage 2: Serve with Nginx
+# Runtime stage
 FROM nginx:alpine
+WORKDIR /usr/share/nginx/html
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy built files
+COPY --from=build /app/dist/university-frontend/browser ./
 
-# Copy built app
-COPY --from=build /app/dist/university-frontend/browser /usr/share/nginx/html
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy env script
-COPY env.sh /docker-entrypoint.d/env.sh
-RUN chmod +x /docker-entrypoint.d/env.sh
+COPY env.sh ./
 
-EXPOSE 80
+# Make script executable
+RUN chmod +x env.sh
 
-CMD ["nginx", "-g", "daemon off;"]
+# Expose port (Railway uses $PORT, typically 8080)
+EXPOSE 8080
+
+# Start nginx with env substitution
+# Railway: Run env.sh first, then start nginx
+CMD ["/bin/sh", "-c", "sh /usr/share/nginx/html/env.sh && nginx -g 'daemon off;'"]
