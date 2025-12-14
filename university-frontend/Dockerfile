@@ -36,6 +36,7 @@ USER nginx
 
 # Expose port (Railway uses $PORT, typically 8080)
 EXPOSE 8080
+EXPOSE 8081
 
 # Start nginx with env substitution
 CMD ["/bin/sh", "-c", "sh /usr/share/nginx/html/env.sh && nginx -g 'daemon off;'"]
