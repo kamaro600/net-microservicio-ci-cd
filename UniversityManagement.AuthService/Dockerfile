@@ -22,5 +22,10 @@ RUN dotnet publish "UniversityManagement.AuthService.csproj" -c Release -o /app/
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 EXPOSE 5063
+
+# Create non-root user
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
+
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "UniversityManagement.AuthService.dll"]

@@ -153,13 +153,13 @@ jobs:
               | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
             
             echo "Quality Gate Status: $QG_STATUS"
+            echo "📊 View details at: https://sonarcloud.io/dashboard?id=$PROJECT_KEY"
             
             if [ "$QG_STATUS" = "OK" ] || [ "$QG_STATUS" = "WARN" ]; then
               echo "✅ Quality Gate passed!"
               exit 0
             else
               echo "❌ Quality Gate failed!"
-              echo "View details at: https://sonarcloud.io/dashboard?id=$PROJECT_KEY"
               exit 1
             fi
           elif [ "$ANALYSIS_STATUS" = "FAILED" ]; then

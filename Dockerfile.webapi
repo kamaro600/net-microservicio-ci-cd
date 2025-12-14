@@ -22,5 +22,10 @@ RUN dotnet publish "UniversityManagement.WebApi.csproj" -c Release -o /app/publi
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 EXPOSE 5000
+
+# Create non-root user
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
+
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "UniversityManagement.WebApi.dll"]

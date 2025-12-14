@@ -23,12 +23,19 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy env script
 COPY env.sh ./
 
-# Make script executable
-RUN chmod +x env.sh
+# Configure for non-root user
+RUN chmod +x env.sh && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid
+
+# Switch to non-root user
+USER nginx
 
 # Expose port (Railway uses $PORT, typically 8080)
 EXPOSE 8080
 
 # Start nginx with env substitution
-# Railway: Run env.sh first, then start nginx
 CMD ["/bin/sh", "-c", "sh /usr/share/nginx/html/env.sh && nginx -g 'daemon off;'"]

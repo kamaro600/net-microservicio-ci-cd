@@ -22,5 +22,10 @@ RUN dotnet publish "UniversityManagement.NotificationService.csproj" -c Release 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 EXPOSE 5065
+
+# Create non-root user
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
+
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "UniversityManagement.NotificationService.dll"]
