@@ -14,7 +14,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Job 1: Build and Test .NET Services
+  # Job 1: Compilar y Probar Servicios .NET
   build-and-test-dotnet:
     name: Build & Test .NET Microservices
     runs-on: ubuntu-latest
@@ -23,7 +23,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Shallow clones should be disabled for better SonarQube analysis
+        fetch-depth: 0  # Los clones superficiales deben deshabilitarse para un mejor análisis de SonarQube
     
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -52,7 +52,7 @@ jobs:
         name: coverage-reports
         path: '**/TestResults/**/coverage.cobertura.xml'
 
-  # Job 2: SonarQube Analysis
+  # Job 2: Análisis de Calidad con SonarQube
   sonarqube-analysis:
     name: SonarQube Code Quality Analysis
     runs-on: ubuntu-latest
@@ -174,7 +174,7 @@ jobs:
         echo "⚠️ Timeout waiting for analysis to complete"
         exit 1
 
-  # Job 3: Build Frontend
+  # Job 3: Compilar Frontend Angular
   build-frontend:
     name: Build Angular Frontend
     runs-on: ubuntu-latest
@@ -204,7 +204,7 @@ jobs:
         name: frontend-dist
         path: university-frontend/dist
 
-  # Job 4: Build Docker Images
+  # Job 4: Construir Imágenes Docker
   build-docker-images:
     name: Build Docker Images
     runs-on: ubuntu-latest
@@ -272,7 +272,7 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  # Job 5: Railway Auto-Deploy
-  # Railway is configured to auto-deploy from GitHub source
-  # When "Wait for CI" is enabled, Railway will deploy after this workflow completes successfully
-  # No manual deployment needed - Railway detects pushes and builds from Dockerfiles automatically
+  # Job 5: Despliegue Automático en Railway
+  # Railway está configurado para auto-desplegar desde GitHub source
+  # Cuando "Wait for CI" está habilitado, Railway desplegará después de que este workflow se complete exitosamente
+  # No se necesita despliegue manual - Railway detecta los pushes y construye desde los Dockerfiles automáticamente
