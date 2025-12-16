@@ -1,8 +1,6 @@
 # Diagramas de Arquitectura
 # Sistema de Gestión Universitaria
 
-**Fecha:** Diciembre 2025
-
 ---
 
 ## 📐 Índice de Diagramas
@@ -478,30 +476,568 @@ graph LR
 
 ---
 
-## 🔐 Seguridad en la Arquitectura
+## 📡 APIs Expuestas por Servicio
+
+### 🔐 Auth Service (Puerto 5063)
+
+**Base URL:** `/api/auth`
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `POST` | `/login` | Autenticar usuario y generar JWT token | ❌ No |
+| `POST` | `/register` | Registrar nuevo usuario | ❌ No |
+| `POST` | `/validate` | Validar token JWT | ❌ No |
+| `POST` | `/refresh` | Refrescar token expirado | ✅ Sí |
+| `GET` | `/me` | Obtener información del usuario actual | ✅ Sí |
+
+**Ejemplo Request:**
+```bash
+# Login
+POST https://www.kamaro.online/api/auth/login
+{
+  "username": "usuario@example.com",
+  "password": "password123"
+}
+```
+
+---
+
+### 🎓 WebAPI Service (Puerto 5000)
+
+**Base URL:** `/api`
+
+#### **Students** (`/api/students`)
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `GET` | `/{id}` | Obtener estudiante por ID | ✅ Sí |
+| `POST` | `/` | Crear nuevo estudiante | ✅ Sí |
+
+#### **Professors** (`/api/professors`)
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `GET` | `/{id}` | Obtener profesor por ID | ✅ Sí |
+| `GET` | `/` | Listar profesores (con filtro opcional) | ✅ Sí |
+| `POST` | `/` | Crear nuevo profesor | ✅ Sí |
+
+#### **Careers** (`/api/careers`)
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `GET` | `/{id}` | Obtener carrera por ID | ❌ No |
+| `GET` | `/` | Listar carreras (con filtro opcional) | ❌ No |
+| `POST` | `/` | Crear nueva carrera | ❌ No |
+
+#### **Faculties** (`/api/faculties`)
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `GET` | `/{id}` | Obtener facultad por ID | ❌ No |
+| `GET` | `/` | Listar facultades (con filtro opcional) | ❌ No |
+| `POST` | `/` | Crear nueva facultad | ❌ No |
+
+#### **Enrollment** (`/api/enrollment`)
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `POST` | `/enroll` | Matricular estudiante en carrera | ✅ Sí |
+| `POST` | `/unenroll` | Desmatricular estudiante de carrera | ✅ Sí |
+| `GET` | `/student/{studentId}` | Obtener matrículas de estudiante | ✅ Sí |
+
+#### **Health** (`/api/health`)
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `GET` | `/` | Health check del servicio | ❌ No |
+
+**Ejemplo Request:**
+```bash
+# Matricular estudiante
+POST https://www.kamaro.online/api/enrollment/enroll
+Authorization: Bearer <JWT_TOKEN>
+{
+  "studentId": 123,
+  "careerId": 456
+}
+```
+
+---
+
+### 📧 Notification Service (Puerto 5065)
+
+**Base URL:** `/api/notifications`
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `POST` | `/enrollment` | Enviar notificación de matrícula | ✅ Sí |
+| `POST` | `/general` | Enviar notificación general | ✅ Sí |
+| `GET` | `/history/{userId}` | Obtener historial de notificaciones | ✅ Sí |
+
+**Ejemplo Request:**
+```bash
+# Notificación de matrícula
+POST https://www.kamaro.online/api/notifications/enrollment
+Authorization: Bearer <JWT_TOKEN>
+{
+  "studentEmail": "student@example.com",
+  "studentName": "Juan Pérez",
+  "careerName": "Ingeniería de Sistemas",
+  "messageId": "msg-12345"
+}
+```
+
+---
+
+### 📊 Audit Service (Puerto 5066)
+
+**Base URL:** `/api/audit`
+
+| Método | Endpoint | Descripción | Autenticación |
+|--------|----------|-------------|---------------|
+| `POST` | `/events` | Registrar evento de auditoría | ✅ Sí |
+| `GET` | `/events` | Listar eventos de auditoría (con filtros) | ✅ Sí |
+| `GET` | `/events/{id}` | Obtener evento por ID | ✅ Sí |
+| `GET` | `/events/entity/{entityName}/{entityId}` | Buscar eventos por entidad | ✅ Sí |
+
+**Ejemplo Request:**
+```bash
+# Registrar evento de auditoría
+POST https://www.kamaro.online/api/audit/events
+Authorization: Bearer <JWT_TOKEN>
+{
+  "eventType": "StudentEnrolled",
+  "entityName": "Enrollment",
+  "entityId": "123",
+  "userId": "user-456",
+  "action": "CREATE",
+  "timestamp": "2025-12-15T10:30:00Z"
+}
+```
+
+---
+
+## 🔑 Autenticación y Autorización
+
+### Flujo de Autenticación JWT
+
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant A as Auth Service
+    participant W as WebAPI/Otros
+
+    C->>A: POST /api/auth/login<br/>{username, password}
+    A-->>C: 200 OK<br/>{token, refreshToken}
+    
+    Note over C: Cliente guarda token<br/>en localStorage/cookie
+    
+    C->>W: GET /api/students/123<br/>Authorization: Bearer {token}
+    W->>A: POST /api/auth/validate<br/>{token}
+    A-->>W: {isValid: true, userId: "..."}
+    W-->>C: 200 OK<br/>{student data}
+    
+    Note over C: Si token expira...
+    
+    C->>A: POST /api/auth/refresh<br/>{refreshToken}
+    A-->>C: 200 OK<br/>{newToken, newRefreshToken}
+```
+
+### Headers Requeridos
+
+**Para endpoints con autenticación (✅):**
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+**Para endpoints públicos (❌):**
+```http
+Content-Type: application/json
+```
+
+---
+
+## 📝 Códigos de Respuesta HTTP
+
+| Código | Significado | Cuándo se usa |
+|--------|-------------|---------------|
+| `200 OK` | Operación exitosa | GET, PUT, PATCH exitosos |
+| `201 Created` | Recurso creado | POST exitoso |
+| `400 Bad Request` | Datos inválidos | Validación fallida |
+| `401 Unauthorized` | No autenticado | Token ausente o inválido |
+| `403 Forbidden` | Sin permisos | Usuario no autorizado |
+| `404 Not Found` | Recurso no existe | ID no encontrado |
+| `500 Internal Server Error` | Error del servidor | Excepción no controlada |
+
+---
+
+## DevOps y Despliegue
+
+### Estrategia de CI/CD
+
+El proyecto implementa un pipeline completo de CI/CD utilizando **GitHub Actions** con 5 jobs principales que garantizan la calidad del código antes del despliegue.
+
+#### Pipeline de GitHub Actions
+
+```yaml
+# .github/workflows/ci-cd.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Job 1: Build y Test de .NET
+  build-and-test:
+    - dotnet restore
+    - dotnet build --configuration Release
+    - dotnet test --no-build --verbosity normal
+    
+  # Job 2: Análisis estático con SonarCloud
+  sonarqube:
+    - SonarCloud Scan (Coverage, Bugs, Vulnerabilities)
+    - Quality Gate Check (BLOQUEA si falla)
+    
+  # Job 3: Build de Frontend Angular
+  frontend:
+    - npm ci
+    - npm run build --prod
+    - npm run test (si aplica)
+    
+  # Job 4: Build y Push de imágenes Docker
+  docker-build:
+    - Build de 5 imágenes (auth, webapi, notification, audit, frontend)
+    - Tag con SHA del commit
+    - Push a ghcr.io (GitHub Container Registry)
+    
+  # Job 5: Comentario en Railway
+  railway-comment:
+    - Genera comentario con status del deployment
+```
+
+#### Herramientas de CI/CD
+
+| Herramienta | Propósito | Configuración |
+|-------------|-----------|---------------|
+| **GitHub Actions** | Orquestación de pipeline | `.github/workflows/ci-cd.yml` |
+| **SonarCloud** | Análisis de calidad de código | `sonar-project.properties` |
+| **Docker** | Containerización | `Dockerfile.*` (multi-stage) |
+| **ghcr.io** | Registry de imágenes públicas | GitHub Container Registry |
+| **Railway** | Plataforma de despliegue | `railway.json` |
+
+#### Quality Gate Enforcement
+
+```mermaid
+graph LR
+    A[🔨 Build & Test] --> B[🔍 SonarCloud Scan]
+    B --> C{🚦 Quality Gate}
+    C -->|❌ FAIL| D[🛑 Pipeline Bloqueado<br/>No se despliega]
+    C -->|✅ PASS| E[🐳 Docker Build]
+    E --> F[📦 Push to ghcr.io]
+    F --> G[🚂 Railway Deploy]
+    
+    style C fill:#fb8500,color:#fff
+    style D fill:#cf222e,color:#fff
+    style G fill:#2ea44f,color:#fff
+```
+
+**Reglas del Quality Gate:**
+- ✅ Coverage mínimo configurado en SonarCloud
+- ✅ Bugs = 0 (configurable)
+- ✅ Vulnerabilities = 0 (configurable)
+- ✅ Code Smells bajo límite (configurable)
+- ⚠️ **Pipeline FALLA si Quality Gate retorna ERROR**
+
+---
+
+### Infraestructura y Despliegue
+
+#### Arquitectura de Despliegue en Railway
+
+El proyecto utiliza **Railway** como plataforma PaaS (Platform as a Service) que abstrae la complejidad de la infraestructura subyacente.
+
+```mermaid
+graph TB
+    subgraph "GitHub Repository"
+        Code[📦 Source Code<br/>main branch]
+        Actions[⚙️ GitHub Actions<br/>CI Pipeline]
+    end
+
+    subgraph "Railway Platform (PaaS)"
+        subgraph "Build Process"
+            Builder[🏗️ Railway Builder<br/>Docker Build]
+        end
+
+        subgraph "Container Runtime"
+            Auth[🔐 Auth Container]
+            WebAPI[🎓 WebAPI Container]
+            Notif[📧 Notification Container]
+            Audit[📊 Audit Container]
+            Front[📱 Frontend Container]
+        end
+
+        subgraph "Managed Services"
+            LB[⚖️ Load Balancer<br/>+ SSL/TLS]
+            DNS[🌐 Custom Domain<br/>www.kamaro.online]
+            Logs[📋 Logs Centralized]
+            Metrics[📊 Metrics Dashboard]
+        end
+
+        subgraph "External Managed Services"
+            NeonDB[(☁️ Neon PostgreSQL<br/>Serverless)]
+            RMQ[🐰 RabbitMQ Cloud]
+            Kafka[📨 Kafka Cloud]
+        end
+    end
+
+    Code -->|Git Push| Actions
+    Actions -->|Wait for CI ✅| Builder
+    Builder -->|Deploy| Auth
+    Builder -->|Deploy| WebAPI
+    Builder -->|Deploy| Notif
+    Builder -->|Deploy| Audit
+    Builder -->|Deploy| Front
+
+    Auth --> NeonDB
+    WebAPI --> NeonDB
+    Audit --> NeonDB
+
+    WebAPI --> RMQ
+    Notif --> RMQ
+
+    WebAPI --> Kafka
+    Audit --> Kafka
+
+    LB --> Front
+    DNS --> LB
+
+    Auth -.->|Logs| Logs
+    WebAPI -.->|Logs| Logs
+    Notif -.->|Logs| Logs
+    Audit -.->|Logs| Logs
+    Front -.->|Logs| Logs
+
+    style Builder fill:#0b0d0e,color:#fff
+    style LB fill:#0078d4,color:#fff
+    style NeonDB fill:#00cc88,color:#fff
+```
+
+#### Configuración de Infraestructura
+
+**Railway** gestiona automáticamente:
+- ✅ **Networking**: VPC privada, balanceadores de carga, DNS
+- ✅ **SSL/TLS**: Certificados Let's Encrypt automáticos
+- ✅ **Escalado**: Auto-scaling vertical (CPU/RAM)
+- ✅ **Monitoreo**: Logs centralizados, métricas de recursos
+- ✅ **Zero-downtime deployments**: Rolling updates
+
+
+#### Base de Datos (Neon PostgreSQL)
+
+**Características:**
+- ✅ **Serverless**: Auto-scaling y auto-suspend
+- ✅ **Branching**: Base de datos por branch (dev/staging/prod)
+- ✅ **Backups**: Automáticos diarios con retención de 7 días
+- ✅ **Connection Pooling**: PgBouncer integrado
+- ✅ **Alta disponibilidad**: Réplicas automáticas
+
+**Variables de entorno en Railway:**
+```bash
+# Auth Service
+DATABASE_URL=postgresql://user:pass@host/auth_db
+
+# WebAPI Service
+DATABASE_URL=postgresql://user:pass@host/university_db
+
+# Audit Service
+DATABASE_URL=postgresql://user:pass@host/audit_db
+```
+
+#### Gestión de Secretos
+
+**Railway Environment Variables:**
+- 🔒 Almacenamiento cifrado de secretos
+- 🔒 Inyección automática en contenedores
+- 🔒 No se exponen en logs ni en código fuente
+- 🔒 Variables por servicio y por entorno
+
+---
+
+### Ambientes de Despliegue
+
+#### Estrategia de Branching y Ambientes
+
+```mermaid
+graph LR
+    subgraph "Git Branches"
+        Dev[🔧 develop branch]
+        Main[🚀 main branch]
+    end
+
+    subgraph "Railway Environments"
+        DevEnv[🧪 Development<br/>PR Previews]
+        ProdEnv[🌐 Production<br/>www.kamaro.online]
+    end
+
+    subgraph "Database Branches"
+        DevDB[(🗄️ dev_db<br/>Neon Branch)]
+        ProdDB[(🗄️ prod_db<br/>Neon Main)]
+    end
+
+    Dev -->|PR Preview| DevEnv
+    Main -->|Auto Deploy| ProdEnv
+
+    DevEnv --> DevDB
+    ProdEnv --> ProdDB
+
+    style Dev fill:#fb8500,color:#fff
+    style Main fill:#2ea44f,color:#fff
+    style ProdEnv fill:#0078d4,color:#fff
+```
+
+#### Configuración de Ambientes
+
+| Ambiente | Branch | Railway | URL | Base de Datos | CI/CD |
+|----------|--------|---------|-----|---------------|-------|
+| **Development** | `develop` | PR Previews | `<pr-id>.up.railway.app` | Neon Branch (dev) | ✅ Run CI, ⚠️ Sin Quality Gate |
+| **Production** | `main` | Production Service | `www.kamaro.online` | Neon Main Branch | ✅ Full CI/CD + Quality Gate |
+
+#### Flujo de Trabajo GitOps
+
+```mermaid
+sequenceDiagram
+    participant Dev as 👨‍💻 Developer
+    participant GH as 📦 GitHub
+    participant CI as ⚙️ GitHub Actions
+    participant SQ as 🔍 SonarCloud
+    participant RW as 🚂 Railway
+
+    Dev->>GH: 1. Push to develop branch
+    GH->>CI: 2. Trigger CI Pipeline
+    CI->>CI: 3. Build & Test
+    CI->>SQ: 4. Code Quality Analysis
+    SQ-->>CI: 5. Quality Report (no blocking)
+    CI->>RW: 6. Build Docker image
+    RW-->>Dev: 7. PR Preview URL
+
+    Note over Dev: Developer revisa PR Preview
+
+    Dev->>GH: 8. Create Pull Request (develop → main)
+    GH->>CI: 9. Trigger CI Pipeline (PR)
+    CI->>CI: 10. Build & Test
+    CI->>SQ: 11. Code Quality Analysis
+    SQ-->>CI: 12. Quality Gate Check
+    
+    alt Quality Gate PASS
+        CI-->>GH: 13. ✅ Status Check Pass
+        Note over GH: PR ready to merge
+        Dev->>GH: 14. Merge PR to main
+        GH->>CI: 15. Trigger Production CI/CD
+        CI->>CI: 16. Build & Test
+        CI->>SQ: 17. Quality Gate (blocking)
+        SQ-->>CI: 18. ✅ PASS
+        CI->>RW: 19. Deploy to Production
+        RW-->>Dev: 20. ✅ Deployed to www.kamaro.online
+    else Quality Gate FAIL
+        CI-->>GH: 13. ❌ Status Check Fail
+        SQ-->>Dev: 14. Quality Issues Report
+        Note over Dev: Fix issues before merge
+    end
+```
+
+#### Estrategia de Despliegue
+
+**1. Despliegue a Producción:**
+- Trigger: Merge a `main` branch
+- Validación: Quality Gate DEBE pasar
+- Estrategia: Rolling update (zero-downtime)
+- Rollback: Revert commit o redeploy desde Railway UI
+- Monitoreo: Railway Logs + Metrics
+
+
+---
+
+### Monitoreo y Observabilidad
+
+#### Herramientas de Monitoreo
+
+```mermaid
+graph TB
+    subgraph "Application Layer"
+        App[📱 Microservicios<br/>5 Contenedores]
+    end
+
+    subgraph "Logging"
+        RWLogs[📋 Railway Logs<br/>Stdout/Stderr]
+        LogStream[🔄 Log Streaming<br/>Real-time]
+    end
+
+    subgraph "Metrics"
+        RWMetrics[📊 Railway Metrics<br/>CPU, RAM, Network]
+        Uptime[⏱️ Uptime Monitoring]
+    end
+
+    subgraph "Quality"
+        SonarDash[🔍 SonarCloud Dashboard<br/>Code Quality]
+    end
+
+    subgraph "CI/CD"
+        GHActions[⚙️ GitHub Actions<br/>Pipeline Status]
+    end
+
+    App -->|Logs| RWLogs
+    App -->|Metrics| RWMetrics
+    RWLogs --> LogStream
+    RWMetrics --> Uptime
+
+    style App fill:#512bd4,color:#fff
+    style RWLogs fill:#6e7781,color:#fff
+    style RWMetrics fill:#2ea44f,color:#fff
+    style SonarDash fill:#cb3032,color:#fff
+```
+
+#### Dashboards Disponibles
+
+| Dashboard | URL | Información |
+|-----------|-----|-------------|
+| **Railway Logs** | `railway.app/project/<id>/logs` | Logs en tiempo real de todos los servicios |
+| **Railway Metrics** | `railway.app/project/<id>/metrics` | CPU, RAM, Network, Uptime |
+| **SonarCloud** | `sonarcloud.io/dashboard?id=kamaro600_net-microservicio-ci-cd` | Quality metrics, coverage, bugs |
+| **GitHub Actions** | `github.com/<repo>/actions` | Estado de pipelines, history |
+| **Production Site** | `www.kamaro.online` | Health check endpoints |
+
+
+---
+
+
+##  Seguridad en la Arquitectura
 
 ```mermaid
 graph TB
     subgraph "Seguridad de Red"
-        HTTPS[🔒 HTTPS/TLS<br/>Let's Encrypt]
-        CORS[🛡️ CORS Policy<br/>Dominios Permitidos]
+        HTTPS[ HTTPS/TLS<br/>Let's Encrypt]
+        CORS[ CORS Policy<br/>Dominios Permitidos]
     end
 
     subgraph "Seguridad de Aplicación"
-        JWT[🔑 JWT Tokens<br/>OAuth2 + Bearer]
-        Auth[🔐 Authorization<br/>RBAC]
-        Validation[✅ Input Validation<br/>Data Sanitization]
+        JWT[ JWT Tokens<br/>OAuth2 + Bearer]
+        Auth[ Authorization<br/>RBAC]
+        Validation[ Input Validation<br/>Data Sanitization]
     end
 
     subgraph "Seguridad de Infraestructura"
-        Secrets[🔒 Secrets Management<br/>Railway Environment Variables]
-        Network[🌐 Network Isolation<br/>Private Networking]
-        Container[🐳 Container Security<br/>Non-root Users]
+        Secrets[ Secrets Management<br/>Railway Environment Variables]
+        Network[ Network Isolation<br/>Private Networking]
+        Container[ Container Security<br/>Non-root Users]
     end
 
     subgraph "Seguridad de Datos"
-        Encryption[🔐 Data Encryption<br/>At Rest + In Transit]
-        Backup[💾 Automated Backups<br/>Neon PostgreSQL]
+        Encryption[ Data Encryption<br/>At Rest + In Transit]
+        Backup[ Automated Backups<br/>Neon PostgreSQL]
     end
 
     HTTPS --> JWT
@@ -534,66 +1070,9 @@ graph TB
 
 ---
 
-## 📈 Escalabilidad y Alta Disponibilidad
-
-```mermaid
-graph TB
-    subgraph "Escalado Horizontal (Future)"
-        LB[⚖️ Load Balancer]
-        R1[🐳 Replica 1]
-        R2[🐳 Replica 2]
-        R3[🐳 Replica 3]
-    end
-
-    subgraph "Escalado Vertical (Current)"
-        Plan[📦 Railway Plan<br/>CPU: 0.5 vCPU<br/>RAM: 512 MB<br/>→ Upgradeable]
-    end
-
-    subgraph "Database Scaling"
-        NeonDB[(☁️ Neon PostgreSQL<br/>Auto-scaling<br/>Read Replicas)]
-    end
-
-    subgraph "Caching (Future)"
-        Redis[⚡ Redis<br/>Session Store<br/>Response Cache]
-    end
-
-    LB --> R1
-    LB --> R2
-    LB --> R3
-
-    R1 --> NeonDB
-    R2 --> NeonDB
-    R3 --> NeonDB
-
-    R1 --> Redis
-    R2 --> Redis
-    R3 --> Redis
-
-    style LB fill:#0078d4,color:#fff
-    style NeonDB fill:#00cc88,color:#fff
-    style Redis fill:#dc382d,color:#fff
-    style Plan fill:#000000,color:#fff
-```
-
-**Estrategia de Escalabilidad:**
-
-- **Fase 1 (Actual)**: Railway plan gratuito, 1 réplica por servicio
-- **Fase 2 (Crecimiento)**: Escalado vertical (más CPU/RAM)
-- **Fase 3 (Producción)**: Escalado horizontal (múltiples réplicas)
-- **Fase 4 (Enterprise)**: Redis cache + CDN + Multi-región
-
----
-
 ## 🎯 Referencias
 
 - **Repositorio GitHub**: https://github.com/kamaro600/net-microservicio-ci-cd
 - **SonarCloud**: https://sonarcloud.io/dashboard?id=kamaro600_net-microservicio-ci-cd
 - **Sitio Web**: https://www.kamaro.online
-- **Documentación ADR**: [ADR.md](ADR.md)
-- **Documentación CI/CD**: [CI-CD-README.md](../CI-CD-README.md)
 
----
-
-**Última actualización:** Diciembre 2025
-**Autor:** Equipo de Desarrollo
-**Versión:** 1.0
